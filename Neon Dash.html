@@ -129,7 +129,7 @@
         // --- [Firebase 랭킹 저장 로직] ---
         async function saveRank(finalScore) {
             // 최소 10점 이상일 때만 등록 권유
-            if (finalScore < 10) return;
+            if (finalScore < 1) return;
 
             if (parent && parent.db) {
                 setTimeout(() => {
