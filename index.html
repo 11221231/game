@@ -8,7 +8,6 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
     <style>
         :root {
-            /* Apple-inspired Design Tokens */
             --bg: #F5F5F7;
             --sidebar-bg: #1D1D1F;
             --accent: #0071E3;
@@ -28,194 +27,131 @@
 
         .container { display: flex; height: 100vh; }
 
-        /* Sidebar Design */
-        .sidebar { 
-            width: 280px; background: var(--sidebar-bg); color: var(--text-main); 
-            display: flex; flex-direction: column; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
-            z-index: 1000; box-shadow: 10px 0 30px rgba(0,0,0,0.1);
+        /* 사이드바 */
+        .sidebar {
+            width: 280px; background: var(--sidebar-bg); color: var(--text-main);
+            display: flex; flex-direction: column; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1000;
         }
 
-        .brand { 
-            padding: 35px 25px; font-size: 1.4rem; font-weight: 700; 
-            letter-spacing: -0.5px; color: #fff;
+        .sidebar-header { padding: 30px 24px; }
+        .sidebar-header h1 { font-size: 22px; font-weight: 700; margin: 0; letter-spacing: -0.5px; }
+
+        .nav-list { flex: 1; overflow-y: auto; padding: 0 12px; }
+        .nav-item {
+            padding: 12px 16px; margin-bottom: 4px; border-radius: 10px;
+            cursor: pointer; transition: all 0.2s; display: flex; align-items: center;
+            color: var(--text-dim); font-size: 15px; font-weight: 500;
         }
+        .nav-item:hover { background: var(--glass); color: var(--text-main); }
+        .nav-item.active { background: var(--accent); color: white; }
 
-        .nav-menu { flex: 1; overflow-y: auto; padding: 10px 15px; }
-        
-        .nav-item { 
-            padding: 12px 15px; cursor: pointer; color: var(--text-dim); 
-            border-radius: var(--radius); margin-bottom: 4px; transition: all 0.2s;
-            display: flex; align-items: center;
+        /* 실시간 랭킹 영역 */
+        .ranking-panel {
+            margin: 20px 12px; padding: 20px; background: var(--glass);
+            border-radius: var(--radius); border: 1px solid var(--border);
         }
+        .ranking-title { font-size: 13px; font-weight: 600; color: var(--text-dim); margin-bottom: 15px; text-transform: uppercase; }
+        #rankList { font-size: 14px; line-height: 1.6; }
+        .loading { color: var(--text-dim); font-style: italic; font-size: 12px; }
 
-        .nav-item:hover { background: var(--glass); color: #fff; }
-        .nav-item.active { background: var(--accent); color: white; font-weight: 600; }
-
-        /* Ranking Section */
-        #ranking-container { 
-            margin: 15px; padding: 20px; border-radius: var(--radius);
-            background: var(--glass); border: 1px solid var(--border);
-        }
-
-        #ranking-container h3 { 
-            font-size: 13px; color: var(--text-dim); margin: 0 0 15px 0; 
-            text-transform: uppercase; letter-spacing: 1px;
-        }
-
-        .rank-row {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 10px; font-size: 14px;
-        }
-
-        .rank-number { color: var(--accent); font-weight: bold; width: 25px; }
-        .rank-name { flex: 1; color: var(--text-main); }
-        .rank-score { font-family: "SF Mono", monospace; color: #FF9F0A; font-weight: 600; }
-
-        .main-content { flex: 1; position: relative; background: #fff; }
+        /* 메인 콘텐츠 */
+        .main-content { flex: 1; position: relative; background: #000; display: flex; flex-direction: column; }
         iframe { width: 100%; height: 100%; border: none; background: #000; }
 
-        /* Mobile Adjustments */
+        /* 모바일 대응 */
+        .mobile-bar {
+            display: none; height: var(--header-height); background: var(--sidebar-bg);
+            color: white; align-items: center; padding: 0 20px; justify-content: space-between;
+        }
+
         @media (max-width: 768px) {
+            .mobile-bar { display: flex; }
             .sidebar { position: fixed; left: 0; top: 0; bottom: 0; transform: translateX(-100%); }
             .sidebar.open { transform: translateX(0); }
-            .mobile-header { 
-                display: flex; height: var(--header-height); background: var(--sidebar-bg); 
-                align-items: center; padding: 0 20px; justify-content: space-between; color: white;
-            }
+            .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 999; }
+            .overlay.show { display: block; }
         }
     </style>
 </head>
 <body>
 
-    <header class="mobile-header" style="display: none;">
-        <div style="font-weight: bold;">Arcade Hub</div>
-        <button onclick="toggleSidebar()" style="background:none; border:none; color:white; font-size:24px;">☰</button>
-    </header>
+    <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
 
     <div class="container">
-        <nav class="sidebar" id="sidebar">
-            <div class="brand">Arcade Hub</div>
-            <div class="nav-menu" id="dynamicMenu">
-                <div style="text-align:center; padding:20px; color:var(--text-dim);">Loading Games...</div>
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h1>Arcade Hub</h1>
             </div>
-            <div id="ranking-container">
-                <h3>🏆 Real-time Ranking</h3>
-                <div id="rank-list">
-                    <div style="font-size:12px; color:var(--text-dim);">Select a game</div>
-                </div>
+            
+            <nav class="nav-list" id="fileList">
+                </nav>
+
+            <div class="ranking-panel">
+                <div class="ranking-title">Real-time Ranking</div>
+                <div id="rankList">게임을 선택해주세요.</div>
             </div>
-        </nav>
+        </aside>
+
         <main class="main-content">
+            <header class="mobile-bar">
+                <div onclick="toggleSidebar()" style="cursor:pointer">Menu</div>
+                <div style="font-weight:700">Arcade Hub</div>
+                <div style="width:40px"></div>
+            </header>
             <iframe id="contentFrame" src=""></iframe>
         </main>
     </div>
 
     <script>
-        const USERNAME = "11221231";
-        const REPO = "game";
-        
-        // 1. Firebase Config Applied
+        // 1. Firebase 설정 (본인의 정보로 교체하세요)
         const firebaseConfig = {
-            apiKey: "AIzaSyAODEbMA_GBeksqrlNRMhwtNdLjNSvgwSw",
-            authDomain: "game-c2924.firebaseapp.com",
-            databaseURL: "https://game-c2924-default-rtdb.firebaseio.com",
-            projectId: "game-c2924",
-            storageBucket: "game-c2924.firebasestorage.app",
-            messagingSenderId: "423929694317",
-            appId: "1:423929694317:web:e995dcf1ad70f146629764"
+            apiKey: "AIzaSy...", 
+            authDomain: "your-project.firebaseapp.com",
+            projectId: "your-project",
+            storageBucket: "your-project.appspot.com",
+            messagingSenderId: "...",
+            appId: "..."
         };
 
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        let unsubscribeRank = null;
-
-        // 2. Load GitHub Files (HTML Games)
-        async function loadFileList() {
-            const menuContainer = document.getElementById('dynamicMenu');
-            try {
-                const response = await fetch(`https://api.github.com/repos/${USERNAME}/${REPO}/contents/`);
-                const files = await response.json();
-                
-                // index.html 제외하고 html 파일만 필터링
-                const htmlFiles = files.filter(f => f.name.endsWith('.html') && f.name !== 'index.html');
-
-                menuContainer.innerHTML = ''; 
-                htmlFiles.forEach((file, index) => {
-                    const div = document.createElement('div');
-                    const displayName = file.name.replace('.html', '').replace(/_/g, ' ').toUpperCase();
-                    
-                    div.className = `nav-item ${index === 0 ? 'active' : ''}`;
-                    div.innerHTML = `<span>${displayName}</span>`;
-                    div.onclick = () => changePage(div, file.name);
-                    menuContainer.appendChild(div);
-
-                    if (index === 0) {
-                        document.getElementById('contentFrame').src = file.name;
-                        loadRankings(file.name); 
-                    }
-                });
-            } catch (err) {
-                menuContainer.innerHTML = '<div style="color:#ff3b30; padding:20px;">Failed to load repo.</div>';
-            }
+        // 2. Firebase 초기화 및 전역 db 객체 생성
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
         }
+        // 중요: window.db로 설정하여 iframe 내 자식창이 부모의 db를 찾기 쉽게 합니다.
+        window.db = firebase.firestore();
 
- // index.html 내의 loadRankings 함수 수정
-function loadRankings(url) {
-    const rankList = document.getElementById('rankList');
-    rankList.innerHTML = '<div class="loading">불러오는 중...</div>';
+        // 게임 목록 (서버에 있는 파일명과 정확히 일치해야 함)
+        const games = [
+            { name: "무기 강화", url: "random forge2.html" },
+            { name: "Neon Dash", url: "Neon Dash.html" },
+            { name: "1945 스트라이커", url: "fighter_1945_style_game.html" },
+            { name: "미사일 피하기", url: "airplane_missile_dodge.html" },
+            { name: "뱀 게임", url: "snake game.html" }
+        ];
 
-    // 파일명을 기반으로 컬렉션 ID 생성 (게임 내 저장 로직과 일치시킴)
-    const fileName = url.split('/').pop();
-    let gameName = "rankings_" + fileName.replace('.html', '').replace(/\s/g, '_').replace(/%20/g, '_');
-
-    // 예외 처리: 특정 게임 파일명이 다를 경우를 대비
-    if (url.includes('random%20forge')) gameName = 'rankings_forge';
-
-    // 기존 리스너 해제 (중복 방지)
-    if (window.currentListener) window.currentListener();
-
-    window.currentListener = db.collection(gameName)
-        .orderBy("score", "desc") // 점수 높은 순 정렬
-        .limit(10)
-        .onSnapshot((snapshot) => {
-            if (snapshot.empty) {
-                rankList.innerHTML = '<div class="loading">기록 없음</div>';
-                return;
-            }
-            let html = "";
-            let rank = 1;
-            snapshot.forEach((doc) => {
-                const data = doc.data();
-                // 단위 설정
-                const unit = (gameName.includes('forge') || gameName.includes('random')) ? '강' : 
-                             (gameName.includes('airplane') || gameName.includes('dodge')) ? 's' : '점';
-                
-                html += `<div style="display:flex; justify-content:space-between; margin-bottom:8px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
-                            <span>${rank++}. ${data.name}</span>
-                            <span style="color: #fbbf24; font-weight:bold;">${data.score}${unit}</span>
-                         </div>`;
+        function loadFileList() {
+            const list = document.getElementById('fileList');
+            games.forEach((game, index) => {
+                const item = document.createElement('div');
+                item.className = `nav-item ${index === 0 ? 'active' : ''}`;
+                item.innerText = game.name;
+                item.onclick = () => changePage(item, game.url);
+                list.appendChild(item);
             });
-            rankList.innerHTML = html;
-        }, (err) => {
-            console.error("Firestore Error:", err);
-            // 색인이 없을 때 뜨는 에러 메시지에 링크가 포함됨
-            rankList.innerHTML = '<div class="loading" style="color:#ff6767;">색인 생성 필요 (콘솔 확인)</div>';
-        });
-}
-
-        function changePage(el, url) {
-            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-            el.classList.add('active');
-            document.getElementById('contentFrame').src = url;
-            loadRankings(url);
-            if (window.innerWidth <= 768) toggleSidebar();
+            
+            // 첫 번째 게임 로드
+            if (games.length > 0) {
+                document.getElementById('contentFrame').src = games[0].url;
+                loadRankings(games[0].url);
+            }
         }
 
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('open');
-        }
+        let currentListener = null;
 
-        loadFileList();
-    </script>
-</body>
-</html>
+        function loadRankings(url) {
+            const rankList = document.getElementById('rankList');
+            rankList.innerHTML = '<div class="loading">불러오는 중...</div>';
+
+            // 컬렉션 이름 생성 로직 (게임 내부 저장 로직과 통일)
+            const fileName
