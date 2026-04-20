@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Neon Dash - High Score Challenge</title>
+    <style>
+        :root {
+            --bg: #000000;
+            --accent: #0A84FF;
+            --text: #F5F5F7;
+            --radius: 12px;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #game-container {
+            position: relative;
+            width: 400px;
+            height: 600px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius);
+            overflow: hidden;
+            background: linear-gradient(180deg, #000 0%, #111 100%);
+        }
+
+        canvas { display: block; }
+
+        #ui-layer {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+        }
+
+        .score-label { font-size: 14px; opacity: 0.6; margin-bottom: 4px; }
+        .score-value { font-size: 24px; font-weight: 700; color: var(--accent); }
+
+        #overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
+        }
+
+        button {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 12px 32px;
+            border-radius: 30px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-top: 20px;
+        }
+
+        button:hover { transform: scale(1.05); }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div id="ui-layer">
+            <div class="score-label">SCORE</div>
+            <div id="score" class="score-value">0</div>
+        </div>
+
+        <canvas id="gameCanvas"></canvas>
+
+        <div id="overlay">
+            <h1 id="title">NEON DASH</h1>
+            <p id="msg">화면을 클릭하거나 스페이스바를 눌러 점프하세요!</p>
+            <div id="final-score" class="hidden">
+                <p>최종 점수</p>
+                <h2 id="last-score-val" style="font-size: 48px; margin: 10px 0;">0</h2>
+            </div>
+            <button id="start-btn">게임 시작</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+        const overlay = document.getElementById('overlay');
+        const startBtn = document.getElementById('start-btn');
+        const lastScoreDiv = document.getElementById('final-score');
+        const lastScoreVal = document.getElementById('last-score-val');
+
+        canvas.width = 400;
+        canvas.height = 600;
+
+        // 게임 상태
+        let gameActive = false;
+        let score = 0;
+        let frames = 0;
+        
+        const player = {
+            x: 50,
+            y: 300,
+            size: 20,
+            velocity: 0,
+            gravity: 0.6,
+            jump: -10
+        };
+
+        let obstacles = [];
+
+        function createObstacle() {
+            const gap = 150;
+            const minHeight = 50;
+            const maxHeight = canvas.height - gap - minHeight;
+            const height = Math.floor(Math.random() * (maxHeight - minHeight + 1)) + minHeight;
+            
+            obstacles.push({
+                x: canvas.width,
+                top: height,
+                bottom: canvas.height - height - gap,
+                width: 50,
+                passed: false
+            });
+        }
+
+        function resetGame() {
+            player.y = 300;
+            player.velocity = 0;
+            obstacles = [];
+            score = 0;
+            frames = 0;
+            scoreEl.innerText = '0';
+            gameActive = true;
+            overlay.classList.add('hidden');
+        }
+
+        function gameOver() {
+            gameActive = false;
+            overlay.classList.remove('hidden');
+            lastScoreDiv.classList.remove('hidden');
+            document.getElementById('title').innerText = "GAME OVER";
+            document.getElementById('msg').innerText = "다시 도전해보세요!";
+            lastScoreVal.innerText = score;
+            startBtn.innerText = "다시 시작";
+        }
+
+        function update() {
+            if (!gameActive) return;
+
+            // 중력 적용
+            player.velocity += player.gravity;
+            player.y += player.velocity;
+
+            // 바닥/천장 충돌
+            if (player.y + player.size > canvas.height || player.y < 0) {
+                gameOver();
+            }
+
+            // 장애물 생성
+            if (frames % 90 === 0) createObstacle();
+
+            // 장애물 이동 및 충돌 체크
+            obstacles.forEach((obs, index) => {
+                obs.x -= 3.5;
+
+                // 충돌 검사
+                if (
+                    player.x + player.size > obs.x && 
+                    player.x < obs.x + obs.width &&
+                    (player.y < obs.top || player.y + player.size > canvas.height - obs.bottom)
+                ) {
+                    gameOver();
+                }
+
+                // 점수 획득
+                if (!obs.passed && obs.x + obs.width < player.x) {
+                    score++;
+                    scoreEl.innerText = score;
+                    obs.passed = true;
+                }
+
+                // 화면 밖 장애물 제거
+                if (obs.x + obs.width < 0) {
+                    obstacles.splice(index, 1);
+                }
+            });
+
+            frames++;
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 장애물 그리기
+            ctx.fillStyle = '#32D74B';
+            obstacles.forEach(obs => {
+                // 상단 장애물
+                ctx.fillRect(obs.x, 0, obs.width, obs.top);
+                // 하단 장애물
+                ctx.fillRect(obs.x, canvas.height - obs.bottom, obs.width, obs.bottom);
+                
+                // 네온 효과
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#32D74B';
+            });
+
+            // 플레이어 그리기
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = '#0A84FF';
+            ctx.fillStyle = '#0A84FF';
+            ctx.fillRect(player.x, player.y, player.size, player.size);
+            
+            // 효과 초기화
+            ctx.shadowBlur = 0;
+
+            requestAnimationFrame(() => {
+                update();
+                draw();
+            });
+        }
+
+        // 입력 제어
+        const handleAction = (e) => {
+            if (e.code === 'Space' || e.type === 'mousedown') {
+                if (gameActive) {
+                    player.velocity = player.jump;
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleAction);
+        canvas.addEventListener('mousedown', handleAction);
+        startBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            resetGame();
+        });
+
+        draw();
+    </script>
+</body>
+</html>
