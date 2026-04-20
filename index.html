@@ -159,45 +159,49 @@
             }
         }
 
-        // 3. Real-time Ranking Logic
-        function loadRankings(gameName) {
-            const rankList = document.getElementById('rank-list');
-            rankList.innerHTML = '<div style="font-size:12px; color:var(--text-dim);">Loading...</div>';
+ // index.html 내의 loadRankings 함수 수정
+function loadRankings(url) {
+    const rankList = document.getElementById('rankList');
+    rankList.innerHTML = '<div class="loading">불러오는 중...</div>';
 
-            if (unsubscribeRank) unsubscribeRank();
+    // 파일명을 기반으로 컬렉션 ID 생성 (게임 내 저장 로직과 일치시킴)
+    const fileName = url.split('/').pop();
+    let gameName = "rankings_" + fileName.replace('.html', '').replace(/\s/g, '_').replace(/%20/g, '_');
 
-            // 파일명 기반 컬렉션 ID 자동 생성 (예: 'game1.html' -> 'rankings_game1')
-            let collectionId = "rankings_" + gameName.replace('.html', '').replace(/\s/g, '_');
-            
-            // 예외 처리 (기존 강화하기 게임 등 특정 ID 유지 필요 시)
-            if (gameName.includes('forge')) collectionId = "rankings_forge";
+    // 예외 처리: 특정 게임 파일명이 다를 경우를 대비
+    if (url.includes('random%20forge')) gameName = 'rankings_forge';
 
-            unsubscribeRank = db.collection(collectionId)
-                .orderBy("score", "desc")
-                .limit(5)
-                .onSnapshot((snapshot) => {
-                    if (snapshot.empty) {
-                        rankList.innerHTML = '<div style="font-size:12px; color:var(--text-dim);">No records yet.</div>';
-                        return;
-                    }
-                    let html = "";
-                    let rank = 1;
-                    snapshot.forEach((doc) => {
-                        const data = doc.data();
-                        const unit = gameName.includes('forge') ? 'Lv' : 'pts';
-                        html += `
-                            <div class="rank-row">
-                                <span class="rank-number">${rank++}</span>
-                                <span class="rank-name">${data.name || 'Anonymous'}</span>
-                                <span class="rank-score">${data.score}${unit}</span>
-                            </div>`;
-                    });
-                    rankList.innerHTML = html;
-                }, (err) => {
-                    console.error(err);
-                    rankList.innerHTML = '<div style="font-size:12px; color:#ff3b30;">Database Error</div>';
-                });
-        }
+    // 기존 리스너 해제 (중복 방지)
+    if (window.currentListener) window.currentListener();
+
+    window.currentListener = db.collection(gameName)
+        .orderBy("score", "desc") // 점수 높은 순 정렬
+        .limit(10)
+        .onSnapshot((snapshot) => {
+            if (snapshot.empty) {
+                rankList.innerHTML = '<div class="loading">기록 없음</div>';
+                return;
+            }
+            let html = "";
+            let rank = 1;
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                // 단위 설정
+                const unit = (gameName.includes('forge') || gameName.includes('random')) ? '강' : 
+                             (gameName.includes('airplane') || gameName.includes('dodge')) ? 's' : '점';
+                
+                html += `<div style="display:flex; justify-content:space-between; margin-bottom:8px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                            <span>${rank++}. ${data.name}</span>
+                            <span style="color: #fbbf24; font-weight:bold;">${data.score}${unit}</span>
+                         </div>`;
+            });
+            rankList.innerHTML = html;
+        }, (err) => {
+            console.error("Firestore Error:", err);
+            // 색인이 없을 때 뜨는 에러 메시지에 링크가 포함됨
+            rankList.innerHTML = '<div class="loading" style="color:#ff6767;">색인 생성 필요 (콘솔 확인)</div>';
+        });
+}
 
         function changePage(el, url) {
             document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
