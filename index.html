@@ -8,56 +8,100 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
     <style>
         :root {
-            --sidebar-width: 280px;
-            --primary: #2563eb;
-            --dark: #0f172a;
+            /* Apple-inspired Design Tokens */
+            --bg: #F5F5F7;
+            --sidebar-bg: #1D1D1F;
+            --accent: #0071E3;
+            --text-main: #F5F5F7;
+            --text-dim: #86868B;
+            --glass: rgba(255, 255, 255, 0.05);
+            --border: rgba(255, 255, 255, 0.1);
+            --radius: 12px;
             --header-height: 60px;
         }
-        body, html { margin: 0; padding: 0; height: 100%; font-family: sans-serif; background: #f8fafc; overflow: hidden; }
-        .mobile-header { display: none; height: var(--header-height); background: var(--dark); color: white; align-items: center; padding: 0 20px; position: fixed; top: 0; left: 0; right: 0; z-index: 100; justify-content: space-between; }
+
+        body, html { 
+            margin: 0; padding: 0; height: 100%; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg); overflow: hidden; 
+        }
+
         .container { display: flex; height: 100vh; }
-        .sidebar { width: var(--sidebar-width); background: var(--dark); color: white; display: flex; flex-direction: column; transition: transform 0.3s ease; z-index: 1000; }
-        .brand { padding: 30px 25px; font-size: 1.2rem; font-weight: bold; color: #60a5fa; border-bottom: 1px solid #1e293b; }
-        .nav-menu { flex: 1; overflow-y: auto; padding: 10px 0; }
-        .nav-item { padding: 15px 25px; cursor: pointer; color: #94a3b8; border-left: 4px solid transparent; transition: 0.2s; }
-        .nav-item:hover { background: #1e293b; color: white; }
-        .nav-item.active { background: #1e293b; color: white; border-left-color: var(--primary); }
-        #ranking-container { padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); }
-        #ranking-container h3 { font-size: 14px; color: #94a3b8; margin: 0 0 15px 0; }
-        #rank-list { font-size: 13px; color: #e2e8f0; line-height: 1.8; min-height: 80px; }
-        .loading { padding: 10px; font-size: 0.8rem; color: #64748b; text-align: center; }
-        .main-content { flex: 1; position: relative; }
-        iframe { width: 100%; height: 100%; border: none; }
+
+        /* Sidebar Design */
+        .sidebar { 
+            width: 280px; background: var(--sidebar-bg); color: var(--text-main); 
+            display: flex; flex-direction: column; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+            z-index: 1000; box-shadow: 10px 0 30px rgba(0,0,0,0.1);
+        }
+
+        .brand { 
+            padding: 35px 25px; font-size: 1.4rem; font-weight: 700; 
+            letter-spacing: -0.5px; color: #fff;
+        }
+
+        .nav-menu { flex: 1; overflow-y: auto; padding: 10px 15px; }
+        
+        .nav-item { 
+            padding: 12px 15px; cursor: pointer; color: var(--text-dim); 
+            border-radius: var(--radius); margin-bottom: 4px; transition: all 0.2s;
+            display: flex; align-items: center;
+        }
+
+        .nav-item:hover { background: var(--glass); color: #fff; }
+        .nav-item.active { background: var(--accent); color: white; font-weight: 600; }
+
+        /* Ranking Section */
+        #ranking-container { 
+            margin: 15px; padding: 20px; border-radius: var(--radius);
+            background: var(--glass); border: 1px solid var(--border);
+        }
+
+        #ranking-container h3 { 
+            font-size: 13px; color: var(--text-dim); margin: 0 0 15px 0; 
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+
+        .rank-row {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 10px; font-size: 14px;
+        }
+
+        .rank-number { color: var(--accent); font-weight: bold; width: 25px; }
+        .rank-name { flex: 1; color: var(--text-main); }
+        .rank-score { font-family: "SF Mono", monospace; color: #FF9F0A; font-weight: 600; }
+
+        .main-content { flex: 1; position: relative; background: #fff; }
+        iframe { width: 100%; height: 100%; border: none; background: #000; }
+
+        /* Mobile Adjustments */
         @media (max-width: 768px) {
-            .mobile-header { display: flex; }
             .sidebar { position: fixed; left: 0; top: 0; bottom: 0; transform: translateX(-100%); }
             .sidebar.open { transform: translateX(0); }
-            .main-content { padding-top: var(--header-height); }
-            .overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 999; }
-            .overlay.show { display: block; }
+            .mobile-header { 
+                display: flex; height: var(--header-height); background: var(--sidebar-bg); 
+                align-items: center; padding: 0 20px; justify-content: space-between; color: white;
+            }
         }
-        .menu-toggle { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <header class="mobile-header">
-        <div style="font-weight: bold; color: #60a5fa;">Flash Game</div>
-        <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+    <header class="mobile-header" style="display: none;">
+        <div style="font-weight: bold;">Arcade Hub</div>
+        <button onclick="toggleSidebar()" style="background:none; border:none; color:white; font-size:24px;">☰</button>
     </header>
-
-    <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
 
     <div class="container">
         <nav class="sidebar" id="sidebar">
-            <div class="brand">Flash Game</div>
+            <div class="brand">Arcade Hub</div>
             <div class="nav-menu" id="dynamicMenu">
-                <div class="loading">파일 목록 불러오는 중...</div>
+                <div style="text-align:center; padding:20px; color:var(--text-dim);">Loading Games...</div>
             </div>
             <div id="ranking-container">
-                <h3>🏆 실시간 랭킹</h3>
+                <h3>🏆 Real-time Ranking</h3>
                 <div id="rank-list">
-                    <div class="loading">게임을 선택해주세요.</div>
+                    <div style="font-size:12px; color:var(--text-dim);">Select a game</div>
                 </div>
             </div>
         </nav>
@@ -70,36 +114,38 @@
         const USERNAME = "11221231";
         const REPO = "game";
         
-        // 1. Firebase 초기화 (안전하게 캡슐화)
-        let db;
-        try {
-            const firebaseConfig = {
-                apiKey: "AIzaSyAODEbMA_GBeksqrlNRMhwtNdLjNSvgwSw",
-                projectId: "game-c2924",
-                appId: "1:423929694317:web:e995dcf1ad70f146629764"
-            };
-            if (!firebase.apps.length) {
-                firebase.initializeApp(firebaseConfig);
-            }
-            db = firebase.firestore();
-        } catch (e) {
-            console.error("Firebase 초기화 에러:", e);
-        }
+        // 1. Firebase Config Applied
+        const firebaseConfig = {
+            apiKey: "AIzaSyAODEbMA_GBeksqrlNRMhwtNdLjNSvgwSw",
+            authDomain: "game-c2924.firebaseapp.com",
+            databaseURL: "https://game-c2924-default-rtdb.firebaseio.com",
+            projectId: "game-c2924",
+            storageBucket: "game-c2924.firebasestorage.app",
+            messagingSenderId: "423929694317",
+            appId: "1:423929694317:web:e995dcf1ad70f146629764"
+        };
 
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
         let unsubscribeRank = null;
 
+        // 2. Load GitHub Files (HTML Games)
         async function loadFileList() {
             const menuContainer = document.getElementById('dynamicMenu');
             try {
                 const response = await fetch(`https://api.github.com/repos/${USERNAME}/${REPO}/contents/`);
                 const files = await response.json();
+                
+                // index.html 제외하고 html 파일만 필터링
                 const htmlFiles = files.filter(f => f.name.endsWith('.html') && f.name !== 'index.html');
 
                 menuContainer.innerHTML = ''; 
                 htmlFiles.forEach((file, index) => {
                     const div = document.createElement('div');
+                    const displayName = file.name.replace('.html', '').replace(/_/g, ' ').toUpperCase();
+                    
                     div.className = `nav-item ${index === 0 ? 'active' : ''}`;
-                    div.innerHTML = `<span>${file.name.replace('.html', '').replace(/_/g, ' ')}</span>`;
+                    div.innerHTML = `<span>${displayName}</span>`;
                     div.onclick = () => changePage(div, file.name);
                     menuContainer.appendChild(div);
 
@@ -109,21 +155,21 @@
                     }
                 });
             } catch (err) {
-                menuContainer.innerHTML = '<div class="loading">로드 실패</div>';
+                menuContainer.innerHTML = '<div style="color:#ff3b30; padding:20px;">Failed to load repo.</div>';
             }
         }
 
+        // 3. Real-time Ranking Logic
         function loadRankings(gameName) {
             const rankList = document.getElementById('rank-list');
-            if (!db) {
-                rankList.innerHTML = '<div class="loading">DB 연결 오류</div>';
-                return;
-            }
-            rankList.innerHTML = '<div class="loading">불러오는 중...</div>';
+            rankList.innerHTML = '<div style="font-size:12px; color:var(--text-dim);">Loading...</div>';
 
             if (unsubscribeRank) unsubscribeRank();
 
+            // 파일명 기반 컬렉션 ID 자동 생성 (예: 'game1.html' -> 'rankings_game1')
             let collectionId = "rankings_" + gameName.replace('.html', '').replace(/\s/g, '_');
+            
+            // 예외 처리 (기존 강화하기 게임 등 특정 ID 유지 필요 시)
             if (gameName.includes('forge')) collectionId = "rankings_forge";
 
             unsubscribeRank = db.collection(collectionId)
@@ -131,22 +177,25 @@
                 .limit(5)
                 .onSnapshot((snapshot) => {
                     if (snapshot.empty) {
-                        rankList.innerHTML = '<div class="loading">기록 없음</div>';
+                        rankList.innerHTML = '<div style="font-size:12px; color:var(--text-dim);">No records yet.</div>';
                         return;
                     }
                     let html = "";
                     let rank = 1;
                     snapshot.forEach((doc) => {
                         const data = doc.data();
-                        const unit = gameName.includes('forge') ? '강' : '점';
-                        html += `<div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                                    <span>${rank++}. ${data.name}</span>
-                                    <span style="color: #fbbf24; font-weight:bold;">${data.score}${unit}</span>
-                                 </div>`;
+                        const unit = gameName.includes('forge') ? 'Lv' : 'pts';
+                        html += `
+                            <div class="rank-row">
+                                <span class="rank-number">${rank++}</span>
+                                <span class="rank-name">${data.name || 'Anonymous'}</span>
+                                <span class="rank-score">${data.score}${unit}</span>
+                            </div>`;
                     });
                     rankList.innerHTML = html;
                 }, (err) => {
-                    rankList.innerHTML = '<div class="loading">권한/인덱스 오류</div>';
+                    console.error(err);
+                    rankList.innerHTML = '<div style="font-size:12px; color:#ff3b30;">Database Error</div>';
                 });
         }
 
@@ -160,7 +209,6 @@
 
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('open');
-            document.getElementById('overlay').classList.toggle('show');
         }
 
         loadFileList();
