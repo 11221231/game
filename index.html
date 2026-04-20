@@ -3,21 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Game Hub & Leaderboard</title>
+    <title>Game Hub - Real-time Leaderboard</title>
     <style>
+        /* 디자인 시스템 적용 */
         :root {
             --bg: #F5F5F7;
-            --bg2: rgba(255, 255, 255, 0.8);
+            --bg2: rgba(255, 255, 255, 0.75);
+            --bg3: rgba(255, 255, 255, 0.95);
+            --border: rgba(0, 0, 0, 0.08);
             --text: #1D1D1F;
             --accent: #0071E3;
-            --radius: 20px;
-            --sans: -apple-system, BlinkMacSystemFont, "SF Pro KR", sans-serif;
+            --green: #34C759;
+            --radius: 22px;
+            --sans: -apple-system, BlinkMacSystemFont, "SF Pro KR", "SF Pro Text", sans-serif;
+            --glass: saturate(180%) blur(20px);
+            --shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
         }
 
+        /* 다크 모드 지원 */
         @media (prefers-color-scheme: dark) {
             :root {
                 --bg: #000000;
-                --bg2: rgba(28, 28, 30, 0.8);
+                --bg2: rgba(28, 28, 30, 0.65);
+                --bg3: rgba(44, 44, 46, 0.85);
+                --border: rgba(255, 255, 255, 0.1);
                 --text: #F5F5F7;
                 --accent: #0A84FF;
             }
@@ -31,98 +40,126 @@
             display: flex;
             height: 100vh;
             overflow: hidden;
+            -webkit-font-smoothing: antialiased;
         }
 
-        /* 왼쪽: 게임 플레이 영역 */
-        .game-section {
+        /* 왼쪽: 게임 실행 영역 */
+        .game-area {
             flex: 1;
             display: flex;
             flex-direction: column;
             padding: 20px;
+            gap: 15px;
         }
 
-        #game-frame {
-            width: 100%;
-            flex: 1;
-            border: none;
-            border-radius: var(--radius);
-            background: #fff;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        }
-
-        /* 오른쪽: 사이드바 (게임 선택 및 랭킹) */
-        .sidebar {
-            width: 350px;
-            background: var(--bg2);
-            backdrop-filter: blur(20px);
-            border-left: 1px solid rgba(125,125,125,0.2);
-            display: flex;
-            flex-direction: column;
-            padding: 25px;
-            overflow-y: auto;
-        }
-
-        .menu-title { font-size: 22px; font-weight: 700; margin-bottom: 20px; }
-        
-        .game-selector {
+        .game-nav {
             display: flex;
             gap: 10px;
-            margin-bottom: 30px;
+            padding: 5px;
             overflow-x: auto;
-            padding-bottom: 10px;
         }
 
         .game-btn {
-            padding: 10px 18px;
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            backdrop-filter: var(--glass);
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .game-btn.active {
             background: var(--accent);
             color: white;
-            border: none;
-            border-radius: 12px;
-            cursor: pointer;
-            white-space: nowrap;
-            font-weight: 600;
+            border-color: var(--accent);
+        }
+
+        #game-view {
+            flex: 1;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: white;
+            box-shadow: var(--shadow);
+        }
+
+        /* 오른쪽: 사이드바 (랭킹) */
+        .sidebar {
+            width: 360px;
+            background: var(--bg3);
+            border-left: 1px solid var(--border);
+            backdrop-filter: var(--glass);
+            display: flex;
+            flex-direction: column;
+            padding: 40px 24px;
+        }
+
+        .sidebar h2 {
+            font-size: 24px;
+            font-weight: 700;
+            margin: 0 0 24px 0;
+            letter-spacing: -0.5px;
         }
 
         .rank-list {
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
+            overflow-y: auto;
         }
 
         .rank-item {
-            background: rgba(125,125,125,0.1);
-            padding: 12px 16px;
-            border-radius: 14px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            padding: 16px;
+            border-radius: 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            animation: fadeIn 0.3s ease-out;
         }
 
-        .rank-name { font-weight: 600; }
-        .rank-score { color: var(--accent); font-weight: 700; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .rank-info { display: flex; align-items: center; gap: 12px; }
+        .rank-num { color: var(--accent); font-weight: 800; font-size: 14px; width: 20px; }
+        .rank-name { font-weight: 600; font-size: 16px; }
+        .rank-score { font-family: "SF Mono", monospace; font-weight: 700; color: var(--green); }
+
+        .empty-state {
+            text-align: center;
+            opacity: 0.4;
+            margin-top: 40px;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
 
-    <div class="game-section">
-        <div class="game-selector" id="game-menu">
+    <div class="game-area">
+        <div class="game-nav" id="game-menu">
             </div>
-        <iframe id="game-frame" src=""></iframe>
+        <iframe id="game-view" src="" frameborder="0"></iframe>
     </div>
 
     <div class="sidebar">
-        <div class="menu-title">실시간 랭킹</div>
+        <h2 id="rank-title">실시간 랭킹</h2>
         <div id="leaderboard" class="rank-list">
-            <div style="opacity: 0.5;">게임을 선택해 주세요.</div>
+            <div class="empty-state">게임을 로드하는 중...</div>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, onValue, query, orderByChild, limitToLast } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-        // 사용자가 업로드한 게임 파일이 Firestore(collection) 문법을 사용하므로 함께 초기화합니다.
-        import { getFirestore, collection, addDoc, onSnapshot, query as fsQuery, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
+        // Firebase 설정
         const firebaseConfig = {
             apiKey: "AIzaSyAODEbMA_GBeksqrlNRMhwtNdLjNSvgwSw",
             authDomain: "game-c2924.firebaseapp.com",
@@ -134,60 +171,78 @@
         };
 
         const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app); // 게임 파일 내의 parent.db가 참조할 객체
+        const db = getFirestore(app);
 
-        // 전역 객체로 설정하여 iframe 내의 게임들이 접근할 수 있도록 함
-        window.db = {
-            collection: (name) => {
-                return {
-                    add: (data) => addDoc(collection(db, name), data)
-                };
-            }
-        };
-
-        // --- 게임 리스트 설정 (새 게임 추가 시 이 부분만 수정) ---
-        const gameList = [
-            { id: "rankings_forge", title: "무기 강화", file: "random forge2.html" },
-            // { id: "rankings_clicker", title: "클리커 게임", file: "clicker.html" }
+        // --- 1. 게임 리스트 설정 ---
+        // 여기에 새 게임을 추가하면 자동으로 버튼이 생기고 랭킹이 연동됩니다.
+        const games = [
+            { id: "rankings_forge", title: "⚔️ 무기 강화", file: "random forge2.html" },
+            // 추가 예시: { id: "rankings_clicker", title: "🖱️ 클리커", file: "clicker.html" }
         ];
 
-        const gameMenu = document.getElementById('game-menu');
-        const gameFrame = document.getElementById('game-frame');
-        const leaderboard = document.getElementById('leaderboard');
+        // --- 2. iframe 내 게임을 위한 브릿지 설정 ---
+        // 게임 파일(random forge2.html)의 parent.db.collection().add()가 작동하게 합니다.
+        window.db = {
+            collection: (name) => ({
+                add: (data) => addDoc(collection(db, name), data)
+            })
+        };
 
-        gameList.forEach(game => {
-            const btn = document.createElement('button');
-            btn.className = 'game-btn';
-            btn.innerText = game.title;
-            btn.onclick = () => loadGame(game);
-            gameMenu.appendChild(btn);
-        });
+        const menuEl = document.getElementById('game-menu');
+        const viewEl = document.getElementById('game-view');
+        const boardEl = document.getElementById('leaderboard');
+        const titleEl = document.getElementById('rank-title');
 
-        function loadGame(game) {
-            gameFrame.src = game.file;
-            updateLeaderboard(game.id);
-        }
+        let currentUnsubscribe = null;
 
-        function updateLeaderboard(collectionName) {
-            const q = fsQuery(collection(db, collectionName), orderBy("score", "desc"), limit(10));
+        // --- 3. UI 및 데이터 로직 ---
+        function loadGame(game, btn) {
+            // 버튼 활성화 스타일
+            document.querySelectorAll('.game-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // iframe 로드
+            viewEl.src = game.file;
+            titleEl.innerText = `${game.title} 랭킹`;
+
+            // 기존 실시간 리스너 해제 후 새 게임 랭킹 연결
+            if (currentUnsubscribe) currentUnsubscribe();
             
-            onSnapshot(q, (snapshot) => {
-                leaderboard.innerHTML = '';
-                snapshot.forEach((doc) => {
+            const q = query(collection(db, game.id), orderBy("score", "desc"), limit(10));
+            currentUnsubscribe = onSnapshot(q, (snapshot) => {
+                boardEl.innerHTML = '';
+                if (snapshot.empty) {
+                    boardEl.innerHTML = '<div class="empty-state">아직 기록이 없습니다.</div>';
+                    return;
+                }
+
+                snapshot.docs.forEach((doc, index) => {
                     const data = doc.data();
                     const item = document.createElement('div');
                     item.className = 'rank-item';
                     item.innerHTML = `
-                        <span class="rank-name">${data.name}</span>
-                        <span class="rank-score">${data.score}</span>
+                        <div class="rank-info">
+                            <span class="rank-num">${index + 1}</span>
+                            <span class="rank-name">${data.name}</span>
+                        </div>
+                        <div class="rank-score">${data.score.toLocaleString()}</div>
                     `;
-                    leaderboard.appendChild(item);
+                    boardEl.appendChild(item);
                 });
             });
         }
 
-        // 첫 번째 게임 자동 실행
-        if(gameList.length > 0) loadGame(gameList[0]);
+        // 메뉴 생성
+        games.forEach((game, idx) => {
+            const btn = document.createElement('button');
+            btn.className = 'game-btn';
+            btn.innerText = game.title;
+            btn.onclick = () => loadGame(game, btn);
+            menuEl.appendChild(btn);
+            
+            // 첫 번째 게임 실행
+            if (idx === 0) loadGame(game, btn);
+        });
     </script>
 </body>
 </html>
