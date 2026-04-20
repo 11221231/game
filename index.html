@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Flash Game Archive</title>
   <style>
-    /* 사용자 정의 Apple 디자인 시스템 */
+    /* 기존 스타일 유지 */
     :root {
       --bg: #F5F5F7;
       --bg2: rgba(255, 255, 255, 0.75);
@@ -42,7 +42,6 @@
 
     .container { display: flex; height: 100vh; }
 
-    /* 사이드바 스타일 */
     .sidebar { 
       width: var(--sidebar-width); 
       background: var(--bg2); 
@@ -54,82 +53,50 @@
       z-index: 1000; 
     }
 
-    .brand { 
-      padding: 30px 25px; 
-      font-size: 1.4rem; 
-      font-weight: 700; 
-      color: var(--accent); 
-      letter-spacing: -0.5px;
-    }
-    
+    .brand { padding: 30px 25px; font-size: 1.4rem; font-weight: 700; color: var(--accent); letter-spacing: -0.5px;}
     .nav-menu { flex: 1; overflow-y: auto; padding: 10px 15px; }
-    
-    .nav-item { 
-      padding: 12px 15px; 
-      margin-bottom: 4px;
-      cursor: pointer; 
-      color: var(--text2); 
-      border-radius: 10px;
-      transition: 0.2s;
-      font-size: 0.95rem;
-    }
-
+    .nav-item { padding: 12px 15px; margin-bottom: 4px; cursor: pointer; color: var(--text2); border-radius: 10px; transition: 0.2s; font-size: 0.95rem;}
     .nav-item:hover { background: var(--border); color: var(--text); }
-    .nav-item.active { 
-      background: var(--accent); 
-      color: white; 
-      font-weight: 500;
-    }
+    .nav-item.active { background: var(--accent); color: white; font-weight: 500;}
 
-    /* 메인 콘텐츠 영역 */
-    .main-content { 
-      flex: 1; 
-      position: relative; 
-      padding: 20px;
-      background: var(--bg);
-    }
-
-    .iframe-wrapper {
-      width: 100%;
-      height: 100%;
-      background: white;
-      border-radius: var(--radius);
-      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
-      overflow: hidden;
-      border: 1px solid var(--border);
-    }
-
+    .main-content { flex: 1; position: relative; padding: 20px; background: var(--bg); }
+    .iframe-wrapper { width: 100%; height: 100%; background: white; border-radius: var(--radius); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04); overflow: hidden; border: 1px solid var(--border); position: relative; }
     iframe { width: 100%; height: 100%; border: none; }
 
-    /* 모바일 대응 */
-    .mobile-header { 
-      display: none; 
-      height: var(--header-height); 
-      background: var(--bg3); 
-      backdrop-filter: blur(10px);
-      border-bottom: 1px solid var(--border);
-      align-items: center; 
-      padding: 0 20px; 
-      position: fixed; top: 0; left: 0; right: 0; 
-      z-index: 100; justify-content: space-between; 
+    /* 랭킹 시스템 Floating UI 추가 */
+    #ranking-overlay {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 260px;
+      background: var(--bg3);
+      backdrop-filter: saturate(180%) blur(20px);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+      border: 1px solid var(--border);
+      z-index: 2000;
+      font-size: 0.9rem;
     }
+
+    .rank-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); }
+    .rank-row:last-child { border: none; }
+    .rank-input-group { margin-top: 15px; display: flex; flex-direction: column; gap: 8px; }
+    input { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); box-sizing: border-box; }
+    .btn-save { background: var(--accent); color: white; border: none; padding: 10px; border-radius: 10px; cursor: pointer; font-weight: 600; }
 
     @media (max-width: 768px) {
       .mobile-header { display: flex; }
+      #ranking-overlay { width: calc(100% - 40px); left: 20px; top: 80px; }
       .sidebar { position: fixed; left: 0; top: 0; bottom: 0; transform: translateX(-100%); }
       .sidebar.open { transform: translateX(0); }
       .main-content { padding: 80px 15px 20px 15px; }
-      .overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.3); z-index: 999; }
-      .overlay.show { display: block; }
     }
-
-    .menu-toggle { background: none; border: none; color: var(--accent); font-size: 1.5rem; cursor: pointer; }
-    .loading { padding: 20px; font-size: 0.9rem; color: var(--text3); text-align: center; }
   </style>
 </head>
 <body>
 
-<header class="mobile-header">
+<header class="mobile-header" style="display:none;">
   <div style="font-weight: bold; color: var(--accent);">Flash Game</div>
   <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
 </header>
@@ -147,64 +114,94 @@
   <main class="main-content">
     <div class="iframe-wrapper">
       <iframe id="contentFrame" src=""></iframe>
+      
+      <div id="ranking-overlay">
+        <h4 style="margin: 0 0 15px 0;">🏆 <span id="current-game-title">Game</span> 랭킹</h4>
+        <div id="rank-list">데이터를 불러오는 중...</div>
+        <div class="rank-input-group">
+          <input type="text" id="nickname" placeholder="닉네임 입력">
+          <button class="btn-save" onclick="saveScore()">기록 등록</button>
+        </div>
+      </div>
     </div>
   </main>
 </div>
 
-<script>
-  const USERNAME = "11221231";
-  const REPO = "game";
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getFirestore, collection, addDoc, query, where, orderBy, limit, onSnapshot } 
+  from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-  async function loadFileList() {
-    const menuContainer = document.getElementById('dynamicMenu');
-    try {
-      const response = await fetch(`https://api.github.com/repos/${USERNAME}/${REPO}/contents/`);
-      if (!response.ok) throw new Error('API 호출 실패');
-      
-      const files = await response.json();
-      const htmlFiles = files.filter(file => 
-        file.name.endsWith('.html') && file.name.toLowerCase() !== 'index.html'
-      );
+  const firebaseConfig = {
+    apiKey: "AIzaSyAODEbMA_GBeksqrlNRMhwtNdLjNSvgwSw",
+    authDomain: "game-c2924.firebaseapp.com",
+    projectId: "game-c2924",
+    storageBucket: "game-c2924.firebasestorage.app",
+    messagingSenderId: "423929694317",
+    appId: "1:423929694317:web:e995dcf1ad70f146629764"
+  };
 
-      menuContainer.innerHTML = '';
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  let currentUnsubscribe = null;
 
-      if (htmlFiles.length === 0) {
-        menuContainer.innerHTML = '<div class="loading">표시할 게임이 없습니다.</div>';
+  // 랭킹 불러오기 함수
+  window.updateRankingUI = (gameId) => {
+    document.getElementById('current-game-title').innerText = gameId;
+    if (currentUnsubscribe) currentUnsubscribe();
+
+    const q = query(
+      collection(db, "rankings"),
+      where("gameId", "==", gameId),
+      orderBy("score", "desc"),
+      limit(5)
+    );
+
+    currentUnsubscribe = onSnapshot(q, (snapshot) => {
+      const listDiv = document.getElementById('rank-list');
+      listDiv.innerHTML = "";
+      if (snapshot.empty) {
+        listDiv.innerHTML = "<div style='color:var(--text3)'>첫 기록을 남겨보세요!</div>";
         return;
       }
-
-      htmlFiles.forEach((file, index) => {
-        const div = document.createElement('div');
-        div.className = `nav-item ${index === 0 ? 'active' : ''}`;
-        const displayName = file.name.replace('.html', '').replace(/_/g, ' ');
-        
-        div.innerHTML = `<span>${displayName}</span>`;
-        div.onclick = () => changePage(div, file.name);
-        menuContainer.appendChild(div);
-
-        if (index === 0) {
-          document.getElementById('contentFrame').src = file.name;
-        }
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        listDiv.innerHTML += `
+          <div class="rank-row">
+            <span>${data.nickname}</span>
+            <strong style="color:var(--accent)">${data.score.toLocaleString()}</strong>
+          </div>`;
       });
-    } catch (error) {
-      menuContainer.innerHTML = '<div class="loading">목록을 불러오지 못했습니다. (API 제한 확인)</div>';
+    });
+  };
+
+  // 점수 저장 함수
+  window.saveScore = async () => {
+    const nick = document.getElementById('nickname').value;
+    const iframe = document.getElementById('contentFrame');
+    const gameId = iframe.src.split('/').pop().replace('.html', '');
+    
+    // iframe 내부의 변수나 메인 윈도우의 전역 변수에서 점수를 가져옴
+    const score = window.currentScore || (iframe.contentWindow && iframe.contentWindow.currentScore) || 0;
+
+    if (!nick) return alert("닉네임을 입력해주세요!");
+    if (score <= 0) return alert("등록할 점수가 없습니다!");
+
+    try {
+      await addDoc(collection(db, "rankings"), {
+        gameId: gameId,
+        nickname: nick,
+        score: Number(score),
+        timestamp: new Date()
+      });
+      alert("등록 완료!");
+      document.getElementById('nickname').value = "";
+    } catch (e) {
+      console.error(e);
+      alert("등록 실패: Firestore 규칙을 확인하세요.");
     }
-  }
-
-  function toggleSidebar() {
-    document.getElementById('sidebar').classList.toggle('open');
-    document.getElementById('overlay').classList.toggle('show');
-  }
-
-  function changePage(el, url) {
-    document.getElementById('contentFrame').src = url;
-    document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
-    el.classList.add('active');
-    if (window.innerWidth <= 768) toggleSidebar();
-  }
-
-  loadFileList();
+  };
 </script>
 
-</body>
-</html>
+<script>
+  const USERNAME = "11221
