@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Random Forge - 전설의 무기 강화</title>
+    <style>
+        :root {
+            --bg: #0f1014;
+            --card-bg: #1c1e26;
+            --text: #ffffff;
+            --accent: #007aff;
+            --success: #32d74b;
+            --fail: #ff453a;
+            --destroy: #ff3b30;
+            --gold: #ffd700;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        #game-app {
+            width: 100%;
+            max-width: 420px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        /* 통계 레이아웃 */
+        .stats-bar {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        /* 메인 강화 카드 */
+        .forge-card {
+            background: var(--card-bg);
+            border-radius: 24px;
+            padding: 40px 20px;
+            position: relative;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            transition: transform 0.1s;
+        }
+
+        .item-display {
+            position: relative;
+            height: 180px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .item-icon {
+            font-size: 80px;
+            filter: drop-shadow(0 0 10px rgba(255,255,255,0.2));
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .level-badge {
+            font-size: 42px;
+            font-weight: 900;
+            margin-bottom: 5px;
+            text-shadow: 0 0 20px rgba(255,255,255,0.3);
+        }
+
+        .item-name {
+            font-size: 18px;
+            opacity: 0.7;
+            margin-bottom: 20px;
+        }
+
+        /* 강화 정보 */
+        .info-panel {
+            background: rgba(0,0,0,0.3);
+            border-radius: 16px;
+            padding: 15px;
+            margin-bottom: 25px;
+        }
+
+        .prob-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            font-size: 14px;
+        }
+
+        .prob-success { color: var(--success); }
+        .prob-fail { color: var(--fail); }
+
+        /* 버튼 */
+        .btn-group {
+            display: grid;
+            gap: 12px;
+        }
+
+        button {
+            border: none;
+            border-radius: 14px;
+            padding: 16px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-forge {
+            background: var(--accent);
+            color: white;
+            box-shadow: 0 4px 15px rgba(0, 122, 255, 0.3);
+        }
+
+        .btn-forge:active { transform: scale(0.96); }
+        .btn-forge:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* 로그 */
+        #log-container {
+            margin-top: 20px;
+            height: 60px;
+            overflow: hidden;
+            font-size: 14px;
+            display: flex;
+            flex-direction: column-reverse;
+        }
+
+        .log-entry {
+            padding: 4px;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 등급별 이펙트 */
+        .tier-normal { color: #fff; }
+        .tier-rare { color: #007aff; text-shadow: 0 0 15px #007aff; }
+        .tier-epic { color: #af52de; text-shadow: 0 0 20px #af52de; }
+        .tier-legend { color: #ff9500; text-shadow: 0 0 25px #ff9500; }
+        .tier-myth { color: #ff2d55; text-shadow: 0 0 30px #ff2d55; animation: pulse 1s infinite; }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .shake { animation: shake 0.4s; }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        .success-flash { animation: success-flash 0.5s; }
+        @keyframes success-flash {
+            0% { background: var(--card-bg); }
+            50% { background: rgba(50, 215, 75, 0.2); }
+            100% { background: var(--card-bg); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-app">
+        <div class="stats-bar">
+            <div>최고 기록: +<span id="best-lv">0</span></div>
+            <div>강화 횟수: <span id="total-tries">0</span></div>
+        </div>
+
+        <div class="forge-card" id="main-card">
+            <div class="level-badge" id="level-txt">+0</div>
+            <div class="item-name" id="name-txt">부러진 직검</div>
+
+            <div class="item-display">
+                <div class="item-icon" id="item-icon">🗡️</div>
+            </div>
+
+            <div class="info-panel">
+                <div class="prob-row">
+                    <span>성공 확률</span>
+                    <span class="prob-success" id="rate-success">100%</span>
+                </div>
+                <div class="prob-row">
+                    <span>하락/파괴 확률</span>
+                    <span class="prob-fail" id="rate-fail">0%</span>
+                </div>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn-forge" id="forge-btn">강화하기</button>
+            </div>
+        </div>
+
+        <div id="log-container"></div>
+    </div>
+
+    <script>
+        let currentLv = 0;
+        let bestLv = 0;
+        let totalTries = 0;
+        let isProcessing = false;
+
+        const levelTxt = document.getElementById('level-txt');
+        const nameTxt = document.getElementById('name-txt');
+        const iconEl = document.getElementById('item-icon');
+        const rateSuccessEl = document.getElementById('rate-success');
+        const rateFailEl = document.getElementById('rate-fail');
+        const forgeBtn = document.getElementById('forge-btn');
+        const logContainer = document.getElementById('log-container');
+        const mainCard = document.getElementById('main-card');
+        const bestLvEl = document.getElementById('best-lv');
+        const triesEl = document.getElementById('total-tries');
+
+        const itemNames = [
+            "부러진 직검", "강철 검", "예리한 기사검", "은빛 수호자", 
+            "영혼의 인도자", "차원 절단기", "드래곤 슬레이어", "신들의 황혼"
+        ];
+
+        const icons = ["🗡️", "⚔️", "🛡️", "🔥", "💎", "✨", "👑", "☄️"];
+
+        function getProbabilities(lv) {
+            // 강화 단계별 확률 설정
+            if (lv < 3) return { success: 100, down: 0, destroy: 0 };
+            if (lv < 7) return { success: 70 - (lv * 5), down: 20, destroy: 0 };
+            if (lv < 12) return { success: 40 - (lv * 2), down: 30, destroy: 5 };
+            if (lv < 15) return { success: 15, down: 40, destroy: 15 };
+            return { success: Math.max(1, 10 - (lv - 15)), down: 50, destroy: 20 };
+        }
+
+        function updateUI() {
+            levelTxt.innerText = `+${currentLv}`;
+            
+            // 등급별 이름 및 아이콘 설정
+            const nameIdx = Math.min(Math.floor(currentLv / 3), itemNames.length - 1);
+            nameTxt.innerText = itemNames[nameIdx];
+            iconEl.innerText = icons[nameIdx];
+
+            // 티어별 색상 클래스 적용
+            levelTxt.className = "level-badge";
+            if (currentLv >= 20) levelTxt.classList.add('tier-myth');
+            else if (currentLv >= 15) levelTxt.classList.add('tier-legend');
+            else if (currentLv >= 10) levelTxt.classList.add('tier-epic');
+            else if (currentLv >= 5) levelTxt.classList.add('tier-rare');
+            else levelTxt.classList.add('tier-normal');
+
+            // 확률 표시
+            const probs = getProbabilities(currentLv);
+            rateSuccessEl.innerText = `${probs.success}%`;
+            rateFailEl.innerText = `${probs.down + probs.destroy}%`;
+
+            // 최고 기록 갱신
+            if (currentLv > bestLv) {
+                bestLv = currentLv;
+                bestLvEl.innerText = bestLv;
+            }
+            triesEl.innerText = totalTries;
+        }
+
+        function addLog(msg, type) {
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.style.color = type === 'success' ? '#32d74b' : (type === 'destroy' ? '#ff3b30' : '#ff9f0a');
+            entry.innerText = msg;
+            logContainer.appendChild(entry);
+            if (logContainer.childNodes.length > 3) {
+                logContainer.removeChild(logContainer.firstChild);
+            }
+        }
+
+        function forge() {
+            if (isProcessing) return;
+            isProcessing = true;
+            totalTries++;
+            forgeBtn.disabled = true;
+
+            // 강화 애니메이션 (흔들기)
+            mainCard.classList.add('shake');
+            
+            setTimeout(() => {
+                const probs = getProbabilities(currentLv);
+                const rand = Math.random() * 100;
+
+                if (rand < probs.success) {
+                    // 성공
+                    currentLv++;
+                    addLog(`[성공] 강화 성공! (+${currentLv})`, 'success');
+                    mainCard.classList.add('success-flash');
+                } else if (rand < probs.success + probs.down) {
+                    // 하락
+                    currentLv = Math.max(0, currentLv - 1);
+                    addLog(`[실패] 강화 단계가 하락했습니다.`, 'fail');
+                } else {
+                    // 파괴
+                    addLog(`[파괴] 무기가 산산조각 났습니다!`, 'destroy');
+                    currentLv = 0;
+                    mainCard.style.borderColor = 'var(--destroy)';
+                    setTimeout(() => mainCard.style.borderColor = '', 500);
+                }
+
+                updateUI();
+                
+                // 애니메이션 제거 및 버튼 활성화
+                setTimeout(() => {
+                    mainCard.classList.remove('shake', 'success-flash');
+                    forgeBtn.disabled = false;
+                    isProcessing = false;
+                }, 100);
+            }, 300);
+        }
+
+        forgeBtn.addEventListener('click', forge);
+        updateUI();
+    </script>
+</body>
+</html>
