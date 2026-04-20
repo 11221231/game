@@ -1,8 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Random Forge - 전설의 무기 강화</title>
@@ -18,9 +16,7 @@
             --gold: #ffd700;
         }
 
-        * {
-            box-sizing: border-box;
-        }
+        * { box-sizing: border-box; }
 
         body {
             margin: 0;
@@ -41,7 +37,6 @@
             text-align: center;
         }
 
-        /* 통계 레이아웃 */
         .stats-bar {
             display: flex;
             justify-content: space-between;
@@ -50,7 +45,6 @@
             opacity: 0.8;
         }
 
-        /* 메인 강화 카드 */
         .forge-card {
             background: var(--card-bg);
             border-radius: 24px;
@@ -89,7 +83,6 @@
             margin-bottom: 20px;
         }
 
-        /* 강화 정보 */
         .info-panel {
             background: rgba(0,0,0,0.3);
             border-radius: 16px;
@@ -104,19 +97,10 @@
             font-size: 14px;
         }
 
-        .prob-success {
-            color: var(--success);
-        }
+        .prob-success { color: var(--success); }
+        .prob-fail { color: var(--fail); }
 
-        .prob-fail {
-            color: var(--fail);
-        }
-
-        /* 버튼 */
-        .btn-group {
-            display: grid;
-            gap: 12px;
-        }
+        .btn-group { display: grid; gap: 12px; }
 
         button {
             border: none;
@@ -134,16 +118,9 @@
             box-shadow: 0 4px 15px rgba(0, 122, 255, 0.3);
         }
 
-            .btn-forge:active {
-                transform: scale(0.96);
-            }
+        .btn-forge:active { transform: scale(0.96); }
+        .btn-forge:disabled { opacity: 0.5; cursor: not-allowed; }
 
-            .btn-forge:disabled {
-                opacity: 0.5;
-                cursor: not-allowed;
-            }
-
-        /* 로그 */
         #log-container {
             margin-top: 20px;
             height: 60px;
@@ -159,91 +136,31 @@
         }
 
         @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
-        /* 등급별 이펙트 */
-        .tier-normal {
-            color: #fff;
-        }
-
-        .tier-rare {
-            color: #007aff;
-            text-shadow: 0 0 15px #007aff;
-        }
-
-        .tier-epic {
-            color: #af52de;
-            text-shadow: 0 0 20px #af52de;
-        }
-
-        .tier-legend {
-            color: #ff9500;
-            text-shadow: 0 0 25px #ff9500;
-        }
-
-        .tier-myth {
-            color: #ff2d55;
-            text-shadow: 0 0 30px #ff2d55;
-            animation: pulse 1s infinite;
-        }
+        .tier-rare { color: #007aff; text-shadow: 0 0 15px #007aff; }
+        .tier-epic { color: #af52de; text-shadow: 0 0 20px #af52de; }
+        .tier-legend { color: #ff9500; text-shadow: 0 0 25px #ff9500; }
+        .tier-myth { color: #ff2d55; text-shadow: 0 0 30px #ff2d55; animation: pulse 1s infinite; }
 
         @keyframes pulse {
-            0% {
-                transform: scale(1);
-            }
-
-            50% {
-                transform: scale(1.1);
-            }
-
-            100% {
-                transform: scale(1);
-            }
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
         }
 
-        .shake {
-            animation: shake 0.4s;
-        }
-
+        .shake { animation: shake 0.4s; }
         @keyframes shake {
-            0%, 100% {
-                transform: translateX(0);
-            }
-
-            25% {
-                transform: translateX(-10px);
-            }
-
-            75% {
-                transform: translateX(10px);
-            }
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
         }
 
-        .success-flash {
-            animation: success-flash 0.5s;
-        }
-
+        .success-flash { animation: success-flash 0.5s; }
         @keyframes success-flash {
-            0% {
-                background: var(--card-bg);
-            }
-
-            50% {
-                background: rgba(50, 215, 75, 0.2);
-            }
-
-            100% {
-                background: var(--card-bg);
-            }
+            0%, 100% { background: var(--card-bg); }
+            50% { background: rgba(50, 215, 75, 0.2); }
         }
     </style>
 </head>
@@ -298,30 +215,33 @@
         const mainCard = document.getElementById('main-card');
         const bestLvEl = document.getElementById('best-lv');
         const triesEl = document.getElementById('total-tries');
-        const firebaseConfig = {
-            apiKey: "AIzaSyAODEbMA_GBeksqrlNRMhwtNdLjNSvgwSw",
-            projectId: "game-c2924",
-            appId: "1:423929694317:web:e995dcf1ad70f146629764"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
+
+        // --- [Firebase 랭킹 저장 로직: 부모 창의 db 객체 활용] ---
         async function saveRank(level) {
+            // 최소 5강 이상일 때만 등록 권유
             if (level < 5) return;
 
-            // 비동기 처리를 위해 setTimeout 외부나 마지막에 호출 권장
-            setTimeout(() => {
-                const playerName = prompt(`${level}강 달성! 이름을 입력하세요:`, "익명");
-                if (playerName) {
-                    db.collection("rankings_forge").add({
-                        name: playerName,
-                        score: level,
-                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                    }).then(() => alert("랭킹에 등록되었습니다!"))
-                        .catch(e => console.error("Error: ", e));
-                }
-            }, 500); // UI가 완전히 업데이트된 후 팝업 발생
+            // 부모 창(index.html)에 db 객체가 있는지 확인
+            if (parent && parent.db) {
+                setTimeout(() => {
+                    const playerName = prompt(`${level}강 달성! 랭킹에 등록할 이름을 입력하세요:`, "익명");
+                    if (playerName) {
+                        // 컬렉션 명칭: rankings_forge (index.html의 예외처리 로직에 맞춤)
+                        parent.db.collection("rankings_forge").add({
+                            name: playerName,
+                            score: parseInt(level),
+                            timestamp: new Date()
+                        }).then(() => {
+                            alert("랭킹에 성공적으로 등록되었습니다!");
+                        }).catch(e => {
+                            console.error("랭킹 등록 에러:", e);
+                        });
+                    }
+                }, 500);
+            } else {
+                console.warn("부모 창의 Firebase DB 객체를 찾을 수 없습니다.");
+            }
         }
-       
 
         const itemNames = [
             "부러진 직검", "강철 검", "예리한 기사검", "은빛 수호자", 
@@ -331,7 +251,6 @@
         const icons = ["🗡️", "⚔️", "🛡️", "🔥", "💎", "✨", "👑", "☄️"];
 
         function getProbabilities(lv) {
-            // 강화 단계별 확률 설정
             if (lv < 3) return { success: 100, down: 0, destroy: 0 };
             if (lv < 7) return { success: 70 - (lv * 5), down: 20, destroy: 0 };
             if (lv < 12) return { success: 40 - (lv * 2), down: 30, destroy: 5 };
@@ -341,28 +260,21 @@
 
         function updateUI() {
             levelTxt.innerText = `+${currentLv}`;
-	// 강화 수치를 점수로 전달
-  	  if (window.parent) window.parent.currentScore = currentLv;
             
-            // 등급별 이름 및 아이콘 설정
             const nameIdx = Math.min(Math.floor(currentLv / 3), itemNames.length - 1);
             nameTxt.innerText = itemNames[nameIdx];
             iconEl.innerText = icons[nameIdx];
 
-            // 티어별 색상 클래스 적용
             levelTxt.className = "level-badge";
             if (currentLv >= 20) levelTxt.classList.add('tier-myth');
             else if (currentLv >= 15) levelTxt.classList.add('tier-legend');
             else if (currentLv >= 10) levelTxt.classList.add('tier-epic');
             else if (currentLv >= 5) levelTxt.classList.add('tier-rare');
-            else levelTxt.classList.add('tier-normal');
 
-            // 확률 표시
             const probs = getProbabilities(currentLv);
             rateSuccessEl.innerText = `${probs.success}%`;
             rateFailEl.innerText = `${probs.down + probs.destroy}%`;
 
-            // 최고 기록 갱신
             if (currentLv > bestLv) {
                 bestLv = currentLv;
                 bestLvEl.innerText = bestLv;
@@ -387,8 +299,6 @@
             totalTries++;
             forgeBtn.disabled = true;
 
-
-            // 강화 애니메이션 (흔들기)
             mainCard.classList.add('shake');
             
             setTimeout(() => {
@@ -396,29 +306,26 @@
                 const rand = Math.random() * 100;
 
                 if (rand < probs.success) {
-                    // 성공
                     currentLv++;
                     addLog(`[성공] 강화 성공! (+${currentLv})`, 'success');
                     mainCard.classList.add('success-flash');
                 } else if (rand < probs.success + probs.down) {
-                    // 하락
                     currentLv = Math.max(0, currentLv - 1);
                     addLog(`[실패] 강화 단계가 하락했습니다.`, 'fail');
                 } else {
                     addLog(`[파괴] 무기가 산산조각 났습니다!`, 'destroy');
-                    const brokenLv = currentLv; // 현재 레벨 저장
+                    const brokenLv = currentLv;
                     currentLv = 0;
-                    if (brokenLv >= 5) saveRank(brokenLv); // 안전하게 호출
+                    if (brokenLv >= 5) saveRank(brokenLv);
                 }
 
                 updateUI();
                 
-                // 애니메이션 제거 및 버튼 활성화
                 setTimeout(() => {
                     mainCard.classList.remove('shake', 'success-flash');
                     forgeBtn.disabled = false;
                     isProcessing = false;
-                }, 200); // 애니메이션 제거 시간을 조금 늘려 자연스럽게 수정
+                }, 200);
             }, 300);
         }
 
