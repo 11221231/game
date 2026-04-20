@@ -1,0 +1,1208 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>비행기 미사일 피하기</title>
+  <style>
+    :root {
+      --bg1: #07101f;
+      --bg2: #132544;
+      --panel: rgba(8, 13, 25, 0.78);
+      --panel2: rgba(255, 255, 255, 0.08);
+      --line: rgba(255, 255, 255, 0.16);
+      --text: #eef5ff;
+      --muted: #aebbd1;
+      --accent: #ffe16d;
+      --danger: #ff5c5c;
+      --good: #62e891;
+      --blue: #6fd7ff;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      min-height: 100%;
+      margin: 0;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(105, 180, 255, 0.16), transparent 32%),
+        radial-gradient(circle at 80% 5%, rgba(255, 225, 109, 0.11), transparent 26%),
+        linear-gradient(180deg, var(--bg1), var(--bg2));
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      overflow-x: hidden;
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+      padding: 18px;
+    }
+
+    .wrap {
+      width: min(100%, 980px);
+      display: grid;
+      gap: 12px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: var(--panel);
+      box-shadow: 0 20px 70px rgba(0, 0, 0, 0.24);
+      backdrop-filter: blur(10px);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(20px, 4vw, 30px);
+      letter-spacing: -0.03em;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.4;
+      text-align: right;
+    }
+
+    .game-shell {
+      position: relative;
+      width: 100%;
+      border-radius: 24px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      background: rgba(0, 0, 0, 0.24);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.36);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 900 / 650;
+      touch-action: none;
+      cursor: crosshair;
+      background: #08111f;
+    }
+
+    .mobile-controls {
+      display: none;
+      grid-template-columns: 132px 1fr 132px;
+      gap: 10px;
+      align-items: end;
+      padding: 12px;
+      border-radius: 22px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      backdrop-filter: blur(10px);
+    }
+
+    .dpad {
+      display: grid;
+      grid-template-columns: repeat(3, 42px);
+      grid-template-rows: repeat(3, 42px);
+      gap: 3px;
+      justify-content: center;
+    }
+
+    .dpad button:nth-child(1) { grid-column: 2; grid-row: 1; }
+    .dpad button:nth-child(2) { grid-column: 1; grid-row: 2; }
+    .dpad button:nth-child(3) { grid-column: 3; grid-row: 2; }
+    .dpad button:nth-child(4) { grid-column: 2; grid-row: 3; }
+
+    button {
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text);
+      font-weight: 800;
+      font-size: 15px;
+      min-height: 42px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+      user-select: none;
+    }
+
+    button:active {
+      transform: translateY(1px);
+      background: rgba(255, 255, 255, 0.18);
+    }
+
+    .side-buttons {
+      display: grid;
+      gap: 8px;
+    }
+
+    .boost-btn {
+      min-height: 91px;
+      background: rgba(255, 225, 109, 0.16);
+      color: #fff4bd;
+    }
+
+    .start-btn {
+      background: rgba(111, 215, 255, 0.14);
+      color: #dff7ff;
+    }
+
+    .description {
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: var(--panel);
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .kbd {
+      display: inline-block;
+      padding: 1px 7px;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-bottom-width: 2px;
+      border-radius: 7px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    @media (max-width: 720px) {
+      body {
+        padding: 10px;
+      }
+
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .hint {
+        text-align: left;
+      }
+
+      .mobile-controls {
+        display: grid;
+      }
+
+      .description {
+        font-size: 13px;
+      }
+    }
+
+    @media (max-width: 430px) {
+      .mobile-controls {
+        grid-template-columns: 126px 1fr 112px;
+        gap: 7px;
+        padding: 9px;
+      }
+
+      .dpad {
+        grid-template-columns: repeat(3, 39px);
+        grid-template-rows: repeat(3, 39px);
+      }
+
+      button {
+        min-height: 39px;
+      }
+
+      .boost-btn {
+        min-height: 84px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="topbar">
+      <h1>비행기 미사일 피하기</h1>
+      <div class="hint">
+        5종류 비행기 중 하나를 골라<br />
+        동그란 미사일을 최대한 오래 피하세요.
+      </div>
+    </section>
+
+    <section class="game-shell">
+      <canvas id="game" width="900" height="650" aria-label="비행기 미사일 피하기 게임"></canvas>
+    </section>
+
+    <section class="mobile-controls" aria-label="모바일 조작 버튼">
+      <div class="dpad">
+        <button data-hold="up">▲</button>
+        <button data-hold="left">◀</button>
+        <button data-hold="right">▶</button>
+        <button data-hold="down">▼</button>
+      </div>
+      <button class="boost-btn" data-hold="boost">BOOST</button>
+      <div class="side-buttons">
+        <button class="start-btn" id="mobileStart">시작/정지</button>
+        <button id="mobileRestart">다시 시작</button>
+      </div>
+    </section>
+
+    <section class="description">
+      조작법:
+      <span class="kbd">1~5</span> 비행기 선택,
+      <span class="kbd">Enter</span>/<span class="kbd">Space</span> 시작·일시정지,
+      <span class="kbd">방향키</span>/<span class="kbd">WASD</span> 이동,
+      <span class="kbd">Shift</span> 부스터,
+      <span class="kbd">R</span> 다시 시작.
+      메뉴 화면에서는 비행기 카드를 클릭해도 선택할 수 있습니다.
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const canvas = document.getElementById("game");
+      const ctx = canvas.getContext("2d");
+
+      const W = canvas.width;
+      const H = canvas.height;
+      const TAU = Math.PI * 2;
+
+      const state = {
+        mode: "menu",
+        selected: 2,
+        score: 0,
+        best: Number(localStorage.getItem("airplaneDodgeBest") || 0),
+        lives: 3,
+        shield: 0,
+        invincible: 0,
+        frame: 0,
+        message: "비행기를 고르고 Enter를 누르세요.",
+        lastTime: 0,
+        spawnTimer: 0,
+        pickupTimer: 0,
+        mouse: { x: 0, y: 0 }
+      };
+
+      const input = {
+        up: false,
+        down: false,
+        left: false,
+        right: false,
+        boost: false
+      };
+
+      const planes = [
+        {
+          name: "1. 번개호",
+          desc: "작고 빠름",
+          speed: 330,
+          radius: 13,
+          lives: 2,
+          boost: 1.48,
+          color: "#5dd7ff",
+          dark: "#2a85aa",
+          style: "dart"
+        },
+        {
+          name: "2. 방패호",
+          desc: "느리지만 목숨 많음",
+          speed: 244,
+          radius: 19,
+          lives: 4,
+          boost: 1.22,
+          color: "#78f08e",
+          dark: "#31804b",
+          style: "tank"
+        },
+        {
+          name: "3. 균형호",
+          desc: "처음 하기 쉬움",
+          speed: 285,
+          radius: 16,
+          lives: 3,
+          boost: 1.33,
+          color: "#ffdc60",
+          dark: "#a77a1d",
+          style: "classic"
+        },
+        {
+          name: "4. 유령호",
+          desc: "피격 판정 작음",
+          speed: 300,
+          radius: 11,
+          lives: 2,
+          boost: 1.58,
+          color: "#c49aff",
+          dark: "#6543a3",
+          style: "stealth"
+        },
+        {
+          name: "5. 폭풍호",
+          desc: "부스터 강함",
+          speed: 268,
+          radius: 15,
+          lives: 3,
+          boost: 2.0,
+          color: "#ff8562",
+          dark: "#9e3d28",
+          style: "falcon"
+        }
+      ];
+
+      const player = {
+        x: W / 2,
+        y: H - 95,
+        angle: -Math.PI / 2
+      };
+
+      const missiles = [];
+      const pickups = [];
+      const particles = [];
+      const stars = Array.from({ length: 90 }, (_, i) => ({
+        x: (i * 137) % W,
+        y: (i * 73) % H,
+        size: i % 4 === 0 ? 2 : 1,
+        speed: 8 + (i % 6) * 2
+      }));
+
+      function plane() {
+        return planes[state.selected];
+      }
+
+      function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+      }
+
+      function rand(min, max) {
+        return min + Math.random() * (max - min);
+      }
+
+      function dist(ax, ay, bx, by) {
+        const dx = ax - bx;
+        const dy = ay - by;
+        return Math.hypot(dx, dy);
+      }
+
+      function angleDiff(target, current) {
+        let diff = target - current;
+        while (diff > Math.PI) diff -= TAU;
+        while (diff < -Math.PI) diff += TAU;
+        return diff;
+      }
+
+      function saveBest() {
+        if (state.score > state.best) {
+          state.best = state.score;
+          localStorage.setItem("airplaneDodgeBest", String(state.best));
+        }
+      }
+
+      function choosePlane(index) {
+        state.selected = index;
+        state.message = `${planes[index].name} 선택됨. Enter로 시작!`;
+      }
+
+      function startGame() {
+        const p = plane();
+        missiles.length = 0;
+        pickups.length = 0;
+        particles.length = 0;
+
+        player.x = W / 2;
+        player.y = H - 95;
+        player.angle = -Math.PI / 2;
+
+        state.mode = "running";
+        state.score = 0;
+        state.lives = p.lives;
+        state.shield = 1.5;
+        state.invincible = 2.0;
+        state.frame = 0;
+        state.spawnTimer = 0;
+        state.pickupTimer = 0;
+        state.message = "";
+        Object.keys(input).forEach((key) => input[key] = false);
+      }
+
+      function toggleStartPause() {
+        if (state.mode === "menu" || state.mode === "gameover") {
+          startGame();
+        } else if (state.mode === "running") {
+          state.mode = "paused";
+          state.message = "일시정지";
+        } else if (state.mode === "paused") {
+          state.mode = "running";
+          state.message = "";
+        }
+      }
+
+      function restart() {
+        if (state.mode === "menu") {
+          state.message = "비행기를 고르고 Enter를 누르세요.";
+        } else {
+          startGame();
+        }
+      }
+
+      function update(dt) {
+        state.frame++;
+
+        if (state.mode !== "running") {
+          updateParticles(dt);
+          return;
+        }
+
+        state.score += dt * 10;
+        saveBest();
+
+        updatePlayer(dt);
+        spawnMissiles(dt);
+        spawnPickups(dt);
+        updateMissiles(dt);
+        updatePickups(dt);
+        updateParticles(dt);
+
+        state.shield = Math.max(0, state.shield - dt);
+        state.invincible = Math.max(0, state.invincible - dt);
+      }
+
+      function updatePlayer(dt) {
+        const p = plane();
+        let dx = 0;
+        let dy = 0;
+
+        if (input.left) dx -= 1;
+        if (input.right) dx += 1;
+        if (input.up) dy -= 1;
+        if (input.down) dy += 1;
+
+        if (dx !== 0 || dy !== 0) {
+          const len = Math.hypot(dx, dy);
+          dx /= len;
+          dy /= len;
+          player.angle = Math.atan2(dy, dx);
+        }
+
+        const speed = p.speed * (input.boost ? p.boost : 1);
+        player.x = clamp(player.x + dx * speed * dt, 30, W - 30);
+        player.y = clamp(player.y + dy * speed * dt, 95, H - 30);
+
+        if (input.boost && (dx !== 0 || dy !== 0)) {
+          const bx = player.x - Math.cos(player.angle) * 26;
+          const by = player.y - Math.sin(player.angle) * 26;
+          particles.push(makeParticle(bx, by, rand(-20, 20), rand(-20, 20), 0.26, "rgba(255, 213, 92, 0.75)", rand(3, 6)));
+        }
+      }
+
+      function spawnMissiles(dt) {
+        const difficulty = Math.min(10, Math.floor(state.score / 120));
+        const interval = Math.max(0.18, 0.72 - difficulty * 0.05);
+        state.spawnTimer += dt;
+
+        if (state.spawnTimer < interval) return;
+        state.spawnTimer = 0;
+
+        const count = state.score > 450 && Math.random() < 0.27 ? 2 : 1;
+        for (let i = 0; i < count; i++) {
+          missiles.push(createMissile(difficulty));
+        }
+      }
+
+      function createMissile(difficulty) {
+        const side = Math.floor(Math.random() * 4);
+        let x, y;
+
+        if (side === 0) {
+          x = rand(0, W);
+          y = -35;
+        } else if (side === 1) {
+          x = W + 35;
+          y = rand(95, H - 35);
+        } else if (side === 2) {
+          x = rand(0, W);
+          y = H + 35;
+        } else {
+          x = -35;
+          y = rand(95, H - 35);
+        }
+
+        const targetX = player.x + rand(-80, 80);
+        const targetY = player.y + rand(-80, 80);
+        const angle = Math.atan2(targetY - y, targetX - x);
+
+        let speed = rand(150, 230) + difficulty * 14;
+        let radius = rand(10, 18) + Math.min(4, difficulty * 0.3);
+        let kind = "normal";
+
+        if (state.score > 220 && Math.random() < 0.16) kind = "homing";
+        if (state.score > 360 && Math.random() < 0.10) kind = "big";
+
+        if (kind === "big") {
+          radius += 9;
+          speed *= 0.78;
+        } else if (kind === "homing") {
+          radius = Math.max(9, radius - 3);
+          speed *= 0.95;
+        }
+
+        return {
+          x,
+          y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          radius,
+          kind,
+          age: 0
+        };
+      }
+
+      function spawnPickups(dt) {
+        state.pickupTimer += dt;
+        if (state.pickupTimer < 8.8) return;
+
+        state.pickupTimer = 0;
+        if (pickups.length >= 2) return;
+
+        pickups.push({
+          x: rand(60, W - 60),
+          y: rand(125, H - 60),
+          kind: Math.random() < 0.65 ? "shield" : "heart",
+          age: 0
+        });
+      }
+
+      function updateMissiles(dt) {
+        for (let i = missiles.length - 1; i >= 0; i--) {
+          const m = missiles[i];
+          m.age += dt;
+
+          if (m.kind === "homing" && m.age < 4.5) {
+            const desired = Math.atan2(player.y - m.y, player.x - m.x);
+            const current = Math.atan2(m.vy, m.vx);
+            const turn = clamp(angleDiff(desired, current), -1.35 * dt, 1.35 * dt);
+            const speed = Math.hypot(m.vx, m.vy);
+            const next = current + turn;
+            m.vx = Math.cos(next) * speed;
+            m.vy = Math.sin(next) * speed;
+          }
+
+          m.x += m.vx * dt;
+          m.y += m.vy * dt;
+
+          if (Math.random() < 0.35) {
+            particles.push(makeParticle(m.x, m.y, rand(-18, 18), rand(-18, 18), 0.36, "rgba(255, 118, 81, 0.45)", rand(3, 6)));
+          }
+
+          if (m.x < -90 || m.x > W + 90 || m.y < -90 || m.y > H + 90) {
+            missiles.splice(i, 1);
+            continue;
+          }
+
+          if (dist(player.x, player.y, m.x, m.y) < plane().radius + m.radius) {
+            missiles.splice(i, 1);
+            hit(m);
+          }
+        }
+      }
+
+      function hit(missile) {
+        explosion(missile.x, missile.y, plane().color, 22);
+
+        if (state.invincible > 0) return;
+
+        if (state.shield > 0) {
+          state.shield = 0;
+          state.invincible = 1.15;
+          state.message = "방어막이 막았습니다!";
+          return;
+        }
+
+        state.lives -= 1;
+        state.invincible = 1.35;
+        state.message = `피격! 남은 목숨: ${state.lives}`;
+
+        if (state.lives <= 0) {
+          state.mode = "gameover";
+          state.message = "게임 오버! R 또는 Enter로 다시 시작";
+          explosion(player.x, player.y, "#ff5c5c", 40);
+          saveBest();
+        }
+      }
+
+      function updatePickups(dt) {
+        for (let i = pickups.length - 1; i >= 0; i--) {
+          const p = pickups[i];
+          p.age += dt;
+
+          if (p.age > 20) {
+            pickups.splice(i, 1);
+            continue;
+          }
+
+          if (dist(player.x, player.y, p.x, p.y) < plane().radius + 18) {
+            if (p.kind === "shield") {
+              state.shield = Math.max(state.shield, 6);
+              state.message = "방어막 획득!";
+              sparkle(p.x, p.y, "#6fd7ff");
+            } else {
+              state.lives = Math.min(state.lives + 1, plane().lives + 2);
+              state.message = "목숨 +1!";
+              sparkle(p.x, p.y, "#ff6e95");
+            }
+            pickups.splice(i, 1);
+          }
+        }
+      }
+
+      function makeParticle(x, y, vx, vy, life, color, radius) {
+        return { x, y, vx, vy, life, maxLife: life, color, radius };
+      }
+
+      function updateParticles(dt) {
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.life -= dt;
+          p.radius *= Math.pow(0.1, dt);
+          if (p.life <= 0 || p.radius < 0.25) {
+            particles.splice(i, 1);
+          }
+        }
+      }
+
+      function explosion(x, y, color, count) {
+        for (let i = 0; i < count; i++) {
+          const a = rand(0, TAU);
+          const s = rand(75, 260);
+          particles.push(makeParticle(
+            x,
+            y,
+            Math.cos(a) * s,
+            Math.sin(a) * s,
+            rand(0.32, 0.78),
+            color,
+            rand(3, 8)
+          ));
+        }
+      }
+
+      function sparkle(x, y, color) {
+        for (let i = 0; i < 18; i++) {
+          const a = rand(0, TAU);
+          const s = rand(55, 170);
+          particles.push(makeParticle(
+            x,
+            y,
+            Math.cos(a) * s,
+            Math.sin(a) * s,
+            rand(0.45, 0.9),
+            color,
+            rand(2, 6)
+          ));
+        }
+      }
+
+      function draw() {
+        drawBackground();
+
+        if (state.mode === "menu") {
+          drawMenu();
+          return;
+        }
+
+        drawHud();
+        drawPickups();
+        drawMissiles();
+        drawParticles();
+        drawPlayer();
+
+        if (state.mode === "paused") {
+          drawOverlay("일시정지", "Space 또는 Enter로 계속하기");
+        } else if (state.mode === "gameover") {
+          drawOverlay("게임 오버", `점수 ${Math.floor(state.score)}점 · R 또는 Enter로 다시 시작`);
+        }
+      }
+
+      function drawBackground() {
+        const gradient = ctx.createLinearGradient(0, 0, 0, H);
+        gradient.addColorStop(0, "#07101f");
+        gradient.addColorStop(1, "#142847");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, W, H);
+
+        ctx.save();
+        ctx.globalAlpha = 0.7;
+        for (const s of stars) {
+          s.y += 0.018 * s.speed;
+          if (s.y > H) s.y = 0;
+          ctx.fillStyle = `rgba(255,255,255,${s.size === 2 ? 0.24 : 0.15})`;
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, s.size, 0, TAU);
+          ctx.fill();
+        }
+        ctx.restore();
+
+        ctx.strokeStyle = "rgba(255,255,255,0.05)";
+        ctx.lineWidth = 1;
+        for (let y = 90; y < H; y += 42) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(W, y);
+          ctx.stroke();
+        }
+      }
+
+      function roundRect(x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+      }
+
+      function centerText(text, y, size = 18, weight = 400, color = "#eef5ff") {
+        ctx.save();
+        ctx.font = `${weight} ${size}px system-ui, -apple-system, Segoe UI, sans-serif`;
+        ctx.fillStyle = color;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(text, W / 2, y);
+        ctx.restore();
+      }
+
+      function drawMenu() {
+        centerText("비행기 미사일 피하기", 82, 44, 900);
+        centerText("비행기 5종류 중 하나를 고르고 동그란 미사일을 피해 오래 살아남으세요.", 125, 18, 400, "#cbd7eb");
+        centerText(state.message, 166, 18, 800, "#ffe16d");
+
+        const cardW = 158;
+        const cardH = 154;
+        const gap = 14;
+        const total = planes.length * cardW + (planes.length - 1) * gap;
+        const startX = (W - total) / 2;
+        const y = 240;
+
+        for (let i = 0; i < planes.length; i++) {
+          drawPlaneCard(planes[i], startX + i * (cardW + gap), y, cardW, cardH, i === state.selected);
+        }
+
+        centerText("조작: 방향키/WASD 이동 · Shift 부스터 · Space/Enter 시작/일시정지 · R 재시작", 477, 16, 500, "#d8e3f7");
+        centerText("숫자 1~5 또는 카드 클릭으로 비행기 선택", 508, 14, 400, "#aebbd1");
+        centerText(`최고점수: ${Math.floor(state.best)}`, 540, 16, 800, "#ffffff");
+      }
+
+      function drawPlaneCard(p, x, y, w, h, selected) {
+        ctx.save();
+        roundRect(x, y, w, h, 22);
+        ctx.fillStyle = selected ? "rgba(255,255,255,0.16)" : "rgba(255,255,255,0.08)";
+        ctx.fill();
+        ctx.lineWidth = selected ? 3 : 1.5;
+        ctx.strokeStyle = selected ? "#ffe16d" : "rgba(255,255,255,0.18)";
+        ctx.stroke();
+
+        ctx.translate(x + w / 2, y + 49);
+        ctx.rotate(-Math.PI / 2);
+        drawPlaneShape(p, 1.0, false);
+        ctx.restore();
+
+        ctx.save();
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = "#f5f8ff";
+        ctx.font = "800 15px system-ui, sans-serif";
+        ctx.fillText(p.name, x + w / 2, y + 91);
+        ctx.fillStyle = "#cbd7eb";
+        ctx.font = "400 12px system-ui, sans-serif";
+        ctx.fillText(p.desc, x + w / 2, y + 116);
+        ctx.fillStyle = "#aebbd1";
+        ctx.font = "400 11px system-ui, sans-serif";
+        ctx.fillText(`속도 ${Math.round(p.speed)} · 목숨 ${p.lives}`, x + w / 2, y + 137);
+        ctx.restore();
+      }
+
+      function drawHud() {
+        ctx.save();
+        roundRect(18, 14, W - 36, 60, 18);
+        ctx.fillStyle = "rgba(3, 7, 14, 0.78)";
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255,255,255,0.10)";
+        ctx.stroke();
+
+        ctx.fillStyle = "#f2f7ff";
+        ctx.font = "800 18px system-ui, sans-serif";
+        ctx.fillText(plane().name.replace(/^\d\.\s*/, ""), 35, 40);
+
+        ctx.font = "500 15px system-ui, sans-serif";
+        ctx.fillText(`점수: ${Math.floor(state.score)}`, 170, 40);
+        ctx.fillText(`최고점수: ${Math.floor(state.best)}`, 270, 40);
+
+        ctx.fillText("목숨:", 405, 40);
+        for (let i = 0; i < state.lives; i++) {
+          ctx.fillStyle = "#ff6e95";
+          drawHeart(456 + i * 21, 35, 0.48);
+        }
+
+        ctx.fillStyle = state.shield > 0 ? "#6fd7ff" : "#aebbd1";
+        ctx.fillText(state.shield > 0 ? "방어막 ON" : "방어막 없음", 565, 40);
+
+        ctx.fillStyle = "#aebbd1";
+        ctx.font = "400 12px system-ui, sans-serif";
+        const msg = state.message || "동그란 미사일을 피하세요! Shift로 부스터";
+        ctx.fillText(msg, 35, 62);
+        ctx.restore();
+      }
+
+      function drawPickups() {
+        for (const p of pickups) {
+          const pulse = Math.sin(p.age * 7) * 3;
+          const r = 15 + pulse;
+
+          ctx.save();
+          if (p.kind === "shield") {
+            ctx.fillStyle = "rgba(111, 215, 255, 0.16)";
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, r + 7, 0, TAU);
+            ctx.fill();
+            ctx.strokeStyle = "#6fd7ff";
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, r, 0, TAU);
+            ctx.stroke();
+            ctx.fillStyle = "#dff7ff";
+            ctx.font = "900 14px system-ui, sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("S", p.x, p.y);
+          } else {
+            ctx.fillStyle = "rgba(255, 110, 149, 0.17)";
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, r + 7, 0, TAU);
+            ctx.fill();
+            ctx.fillStyle = "#ff6e95";
+            drawHeart(p.x, p.y, 0.9);
+          }
+          ctx.restore();
+        }
+      }
+
+      function drawMissiles() {
+        for (const m of missiles) {
+          ctx.save();
+
+          if (m.kind === "homing") {
+            ctx.fillStyle = "rgba(255, 75, 105, 0.16)";
+            ctx.beginPath();
+            ctx.arc(m.x, m.y, m.radius + 7, 0, TAU);
+            ctx.fill();
+            ctx.fillStyle = "#ff4e69";
+          } else if (m.kind === "big") {
+            ctx.fillStyle = "rgba(255, 145, 54, 0.17)";
+            ctx.beginPath();
+            ctx.arc(m.x, m.y, m.radius + 8, 0, TAU);
+            ctx.fill();
+            ctx.fillStyle = "#ff9136";
+          } else {
+            ctx.fillStyle = "#ff6255";
+          }
+
+          ctx.beginPath();
+          ctx.arc(m.x, m.y, m.radius, 0, TAU);
+          ctx.fill();
+
+          ctx.fillStyle = "rgba(255, 231, 130, 0.78)";
+          ctx.beginPath();
+          ctx.arc(m.x - m.radius * 0.14, m.y + m.radius * 0.03, Math.max(4, m.radius * 0.46), 0, TAU);
+          ctx.fill();
+
+          ctx.fillStyle = "rgba(255,255,255,0.55)";
+          ctx.beginPath();
+          ctx.arc(m.x - m.radius * 0.28, m.y - m.radius * 0.35, Math.max(2, m.radius * 0.22), 0, TAU);
+          ctx.fill();
+
+          ctx.restore();
+        }
+      }
+
+      function drawParticles() {
+        for (const p of particles) {
+          ctx.save();
+          ctx.globalAlpha = clamp(p.life / p.maxLife, 0, 1);
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.radius, 0, TAU);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+
+      function drawPlayer() {
+        if (state.invincible > 0 && Math.floor(state.invincible * 18) % 2 === 0) return;
+
+        ctx.save();
+        ctx.translate(player.x, player.y);
+        ctx.rotate(player.angle);
+
+        if (state.shield > 0) {
+          const sr = plane().radius + 13;
+          ctx.fillStyle = "rgba(111, 215, 255, 0.18)";
+          ctx.beginPath();
+          ctx.arc(0, 0, sr, 0, TAU);
+          ctx.fill();
+          ctx.strokeStyle = "rgba(111, 215, 255, 0.75)";
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+        }
+
+        drawPlaneShape(plane(), 1.16, true);
+        ctx.restore();
+
+        ctx.save();
+        ctx.strokeStyle = "rgba(255,255,255,0.10)";
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, plane().radius, 0, TAU);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawPlaneShape(p, scale, flame) {
+        ctx.save();
+        ctx.scale(scale, scale);
+        ctx.lineJoin = "round";
+        ctx.lineCap = "round";
+
+        const main = p.color;
+        const dark = p.dark;
+
+        if (p.style === "dart") {
+          path([
+            [29, 0],
+            [-17, -13],
+            [-7, 0],
+            [-17, 13]
+          ]);
+          ctx.fillStyle = main;
+          ctx.fill();
+          path([[9, 0], [-6, -5], [-1, 0]]);
+          ctx.fillStyle = "rgba(255,255,255,0.42)";
+          ctx.fill();
+        } else if (p.style === "tank") {
+          ctx.fillStyle = main;
+          roundMiniRect(-21, -10, 41, 20, 10);
+          ctx.fill();
+          ctx.fillStyle = dark;
+          ctx.fillRect(-4, -18, 14, 36);
+          path([[28, 0], [8, -9], [8, 9]]);
+          ctx.fillStyle = "rgba(255,255,255,0.35)";
+          ctx.fill();
+        } else if (p.style === "stealth") {
+          path([[31, 0], [-18, -18], [-5, 0], [-18, 18]]);
+          ctx.fillStyle = main;
+          ctx.fill();
+          ctx.strokeStyle = "rgba(255,255,255,0.42)";
+          ctx.lineWidth = 1.5;
+          line(0, -6, 17, 0);
+          line(0, 6, 17, 0);
+        } else if (p.style === "falcon") {
+          path([[32, 0], [-20, -15], [-11, -3], [-22, 0], [-11, 3], [-20, 15]]);
+          ctx.fillStyle = main;
+          ctx.fill();
+          path([[23, 0], [0, -5], [5, 5]]);
+          ctx.fillStyle = "rgba(255,255,255,0.36)";
+          ctx.fill();
+        } else {
+          path([[30, 0], [-16, -11], [-7, 0], [-16, 11]]);
+          ctx.fillStyle = main;
+          ctx.fill();
+
+          ctx.fillStyle = dark;
+          path([[-2, -5], [-24, -22], [-12, -2]]);
+          ctx.fill();
+          path([[-2, 5], [-24, 22], [-12, 2]]);
+          ctx.fill();
+
+          ctx.fillStyle = "rgba(255,255,255,0.45)";
+          ctx.beginPath();
+          ctx.ellipse(5, 0, 10, 5, 0, 0, TAU);
+          ctx.fill();
+        }
+
+        ctx.strokeStyle = "rgba(255,255,255,0.45)";
+        ctx.lineWidth = 1.2;
+        line(-7, 0, 18, 0);
+
+        if (flame && input.boost) {
+          path([[-19, -6], [-38, 0], [-19, 6]]);
+          ctx.fillStyle = "rgba(255, 215, 75, 0.85)";
+          ctx.fill();
+          path([[-20, -3], [-30, 0], [-20, 3]]);
+          ctx.fillStyle = "rgba(255, 106, 45, 0.85)";
+          ctx.fill();
+        }
+
+        ctx.restore();
+      }
+
+      function path(points) {
+        ctx.beginPath();
+        ctx.moveTo(points[0][0], points[0][1]);
+        for (let i = 1; i < points.length; i++) {
+          ctx.lineTo(points[i][0], points[i][1]);
+        }
+        ctx.closePath();
+      }
+
+      function line(x1, y1, x2, y2) {
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+      }
+
+      function roundMiniRect(x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+      }
+
+      function drawHeart(x, y, scale) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(scale, scale);
+        ctx.beginPath();
+        ctx.moveTo(0, 11);
+        ctx.bezierCurveTo(-22, -5, -10, -22, 0, -9);
+        ctx.bezierCurveTo(10, -22, 22, -5, 0, 11);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawOverlay(title, subtitle) {
+        ctx.save();
+        roundRect(245, 230, 410, 185, 28);
+        ctx.fillStyle = "rgba(0, 0, 0, 0.72)";
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255,255,255,0.16)";
+        ctx.stroke();
+
+        centerText(title, 305, 40, 900);
+        centerText(subtitle, 348, 18, 400, "#dce7fa");
+        centerText("방향키/WASD 이동 · Shift 부스터 · Esc 종료", 382, 14, 400, "#aebbd1");
+        ctx.restore();
+      }
+
+      function getCanvasPoint(event) {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = event.clientX ?? (event.touches && event.touches[0].clientX) ?? 0;
+        const clientY = event.clientY ?? (event.touches && event.touches[0].clientY) ?? 0;
+        return {
+          x: (clientX - rect.left) * (W / rect.width),
+          y: (clientY - rect.top) * (H / rect.height)
+        };
+      }
+
+      function clickMenu(x, y) {
+        if (state.mode !== "menu") return false;
+
+        const cardW = 158;
+        const cardH = 154;
+        const gap = 14;
+        const total = planes.length * cardW + (planes.length - 1) * gap;
+        const startX = (W - total) / 2;
+        const cardY = 240;
+
+        for (let i = 0; i < planes.length; i++) {
+          const x0 = startX + i * (cardW + gap);
+          if (x >= x0 && x <= x0 + cardW && y >= cardY && y <= cardY + cardH) {
+            choosePlane(i);
+            return true;
+          }
+        }
+        return false;
+      }
+
+      canvas.addEventListener("pointerdown", (event) => {
+        const p = getCanvasPoint(event);
+        if (!clickMenu(p.x, p.y) && state.mode === "gameover") {
+          startGame();
+        }
+      });
+
+      window.addEventListener("keydown", (event) => {
+        const key = event.key.toLowerCase();
+
+        if (["arrowup", "arrowdown", "arrowleft", "arrowright", " ", "w", "a", "s", "d"].includes(key)) {
+          event.preventDefault();
+        }
+
+        if (key === "arrowup" || key === "w") input.up = true;
+        if (key === "arrowdown" || key === "s") input.down = true;
+        if (key === "arrowleft" || key === "a") input.left = true;
+        if (key === "arrowright" || key === "d") input.right = true;
+        if (key === "shift") input.boost = true;
+
+        if (key >= "1" && key <= "5") choosePlane(Number(key) - 1);
+        if (key === " " || key === "enter") toggleStartPause();
+        if (key === "r") restart();
+        if (key === "escape") {
+          state.mode = "menu";
+          state.message = "비행기를 고르고 Enter를 누르세요.";
+        }
+      }, { passive: false });
+
+      window.addEventListener("keyup", (event) => {
+        const key = event.key.toLowerCase();
+        if (key === "arrowup" || key === "w") input.up = false;
+        if (key === "arrowdown" || key === "s") input.down = false;
+        if (key === "arrowleft" || key === "a") input.left = false;
+        if (key === "arrowright" || key === "d") input.right = false;
+        if (key === "shift") input.boost = false;
+      });
+
+      function setHoldButton(button, key) {
+        const on = (event) => {
+          event.preventDefault();
+          input[key] = true;
+        };
+        const off = (event) => {
+          event.preventDefault();
+          input[key] = false;
+        };
+        button.addEventListener("pointerdown", on);
+        button.addEventListener("pointerup", off);
+        button.addEventListener("pointercancel", off);
+        button.addEventListener("pointerleave", off);
+      }
+
+      document.querySelectorAll("[data-hold]").forEach((button) => {
+        setHoldButton(button, button.dataset.hold);
+      });
+
+      document.getElementById("mobileStart").addEventListener("click", toggleStartPause);
+      document.getElementById("mobileRestart").addEventListener("click", restart);
+
+      function loop(time) {
+        if (!state.lastTime) state.lastTime = time;
+        const dt = Math.min(0.033, (time - state.lastTime) / 1000);
+        state.lastTime = time;
+
+        update(dt);
+        draw();
+        requestAnimationFrame(loop);
+      }
+
+      draw();
+      requestAnimationFrame(loop);
+    })();
+  </script>
+</body>
+</html>

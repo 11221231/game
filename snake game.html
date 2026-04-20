@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>뱀게임</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: rgba(15, 23, 42, 0.86);
+      --panel-2: rgba(30, 41, 59, 0.9);
+      --border: rgba(148, 163, 184, 0.2);
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #22c55e;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top, rgba(34, 197, 94, 0.12), transparent 35%),
+        radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.12), transparent 28%),
+        linear-gradient(160deg, #020617, #111827 55%, #020617);
+      padding: 20px;
+    }
+
+    .app {
+      width: min(94vw, 820px);
+      display: grid;
+      gap: 16px;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding: 18px 20px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+    }
+
+    .title-wrap {
+      display: grid;
+      gap: 6px;
+    }
+
+    .title {
+      font-size: clamp(1.4rem, 2.4vw, 2rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin: 0;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin: 0;
+      font-size: 0.95rem;
+    }
+
+    .stats {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .stat {
+      min-width: 106px;
+      padding: 10px 12px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 0.8rem;
+      margin-bottom: 4px;
+    }
+
+    .stat-value {
+      font-size: 1.15rem;
+      font-weight: 800;
+    }
+
+    .game-card {
+      position: relative;
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 16px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+    }
+
+    .canvas-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      background: linear-gradient(180deg, rgba(15, 23, 42, 0.85), rgba(2, 6, 23, 0.9));
+      border-radius: 18px;
+      overflow: hidden;
+      border: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 20px;
+      background: linear-gradient(180deg, rgba(2, 6, 23, 0.2), rgba(2, 6, 23, 0.65));
+      transition: opacity 0.18s ease;
+      pointer-events: auto;
+    }
+
+    .overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .overlay-card {
+      width: min(90%, 360px);
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
+      pointer-events: auto;
+    }
+
+    .overlay h2 {
+      margin: 0 0 8px;
+      font-size: 1.55rem;
+    }
+
+    .overlay p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .actions,
+    .mobile-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .actions {
+      margin-top: 14px;
+      justify-content: space-between;
+    }
+
+    button {
+      border: 0;
+      border-radius: 14px;
+      background: var(--accent);
+      color: white;
+      font: inherit;
+      font-weight: 700;
+      padding: 12px 16px;
+      cursor: pointer;
+      transition: transform 0.12s ease, filter 0.12s ease, background 0.12s ease;
+      box-shadow: 0 10px 20px rgba(34, 197, 94, 0.22);
+    }
+
+    button:hover {
+      filter: brightness(1.05);
+      transform: translateY(-1px);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .secondary {
+      background: #334155;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.18);
+    }
+
+    .danger {
+      background: var(--danger);
+      box-shadow: 0 10px 20px rgba(239, 68, 68, 0.22);
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 14px 4px 2px;
+      color: var(--muted);
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.15);
+    }
+
+    .status.paused .dot {
+      background: var(--warning);
+      box-shadow: 0 0 0 5px rgba(245, 158, 11, 0.15);
+    }
+
+    .status.over .dot {
+      background: var(--danger);
+      box-shadow: 0 0 0 5px rgba(239, 68, 68, 0.15);
+    }
+
+    .help {
+      font-size: 0.93rem;
+      line-height: 1.6;
+    }
+
+    .help kbd {
+      background: rgba(30, 41, 59, 0.95);
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      border-bottom-width: 2px;
+      border-radius: 8px;
+      padding: 3px 8px;
+      color: var(--text);
+      font-family: inherit;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .mobile-controls {
+      margin-top: 14px;
+      user-select: none;
+    }
+
+    .mobile-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(64px, 80px));
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .mobile-grid button {
+      background: #1e293b;
+      min-height: 62px;
+      font-size: 1.35rem;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.18);
+    }
+
+    .mobile-grid .empty {
+      visibility: hidden;
+    }
+
+    .footer-note {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-top: 6px;
+    }
+
+    @media (max-width: 700px) {
+      .actions {
+        justify-content: center;
+      }
+
+      .stats {
+        width: 100%;
+      }
+
+      .stat {
+        flex: 1 1 30%;
+        min-width: 96px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="header">
+      <div class="title-wrap">
+        <h1 class="title">🐍 뱀게임</h1>
+        <p class="subtitle">먹이를 먹고 길어지는 클래식 스네이크 게임</p>
+      </div>
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-label">점수</div>
+          <div class="stat-value" id="score">0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">최고 점수</div>
+          <div class="stat-value" id="bestScore">0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">속도</div>
+          <div class="stat-value" id="speedLabel">1단계</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="game-card">
+      <div class="canvas-wrap">
+        <canvas id="game" width="480" height="480" aria-label="뱀게임 화면"></canvas>
+        <div class="overlay" id="overlay">
+          <div class="overlay-card">
+            <h2 id="overlayTitle">게임 시작</h2>
+            <p id="overlayText">방향키 또는 WASD로 움직이세요. 먹이를 먹으면 속도가 조금씩 빨라집니다.</p>
+            <div class="actions" style="margin-top:16px; justify-content:center;">
+              <button id="startButton">시작하기</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <div class="actions" style="margin-top:0; justify-content:flex-start;">
+          <button id="pauseButton" class="secondary">일시정지</button>
+          <button id="restartButton" class="danger">다시 시작</button>
+        </div>
+        <div class="help">
+          <kbd>←↑↓→</kbd> / <kbd>WASD</kbd> 이동 · <kbd>Space</kbd> 일시정지 · <kbd>R</kbd> 재시작
+        </div>
+      </div>
+
+      <div class="status-row">
+        <div class="status" id="statusBadge"><span class="dot"></span><span id="statusText">대기 중</span></div>
+        <div class="help">벽이나 자기 몸에 부딪히면 게임 오버</div>
+      </div>
+
+      <div class="mobile-controls" aria-label="모바일 방향 버튼">
+        <div class="mobile-grid">
+          <button class="empty" tabindex="-1" aria-hidden="true"></button>
+          <button data-dir="up" aria-label="위로 이동">▲</button>
+          <button class="empty" tabindex="-1" aria-hidden="true"></button>
+          <button data-dir="left" aria-label="왼쪽으로 이동">◀</button>
+          <button data-dir="down" aria-label="아래로 이동">▼</button>
+          <button data-dir="right" aria-label="오른쪽으로 이동">▶</button>
+        </div>
+      </div>
+
+      <div class="footer-note">브라우저에서 파일을 열면 바로 플레이할 수 있습니다.</div>
+    </section>
+  </main>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+
+    const scoreEl = document.getElementById('score');
+    const bestScoreEl = document.getElementById('bestScore');
+    const speedLabelEl = document.getElementById('speedLabel');
+    const statusTextEl = document.getElementById('statusText');
+    const statusBadgeEl = document.getElementById('statusBadge');
+    const overlayEl = document.getElementById('overlay');
+    const overlayTitleEl = document.getElementById('overlayTitle');
+    const overlayTextEl = document.getElementById('overlayText');
+    const startButton = document.getElementById('startButton');
+    const pauseButton = document.getElementById('pauseButton');
+    const restartButton = document.getElementById('restartButton');
+
+    const GRID_SIZE = 24;
+    const TILE_COUNT = canvas.width / GRID_SIZE;
+    const INITIAL_SPEED = 150;
+    const MIN_SPEED = 65;
+    const SPEED_STEP = 4;
+
+    let snake = [];
+    let direction = { x: 1, y: 0 };
+    let nextDirection = { x: 1, y: 0 };
+    let food = { x: 14, y: 10 };
+    let score = 0;
+    let bestScore = Number(localStorage.getItem('snake-best-score') || 0);
+    let running = false;
+    let paused = false;
+    let gameOver = false;
+    let tickDelay = INITIAL_SPEED;
+    let loopId = null;
+    let inputLocked = false;
+
+    function clampTickDelay() {
+      tickDelay = Math.max(MIN_SPEED, INITIAL_SPEED - score * SPEED_STEP);
+      const level = Math.floor((INITIAL_SPEED - tickDelay) / 12) + 1;
+      speedLabelEl.textContent = `${level}단계`;
+    }
+
+    function updateScoreboard() {
+      scoreEl.textContent = String(score);
+      bestScoreEl.textContent = String(bestScore);
+    }
+
+    function setStatus(type, text) {
+      statusBadgeEl.className = `status ${type}`.trim();
+      statusTextEl.textContent = text;
+    }
+
+    function showOverlay(title, text, buttonText = '시작하기') {
+      overlayTitleEl.textContent = title;
+      overlayTextEl.textContent = text;
+      startButton.textContent = buttonText;
+      overlayEl.classList.remove('hidden');
+    }
+
+    function hideOverlay() {
+      overlayEl.classList.add('hidden');
+    }
+
+    function randomTile() {
+      return Math.floor(Math.random() * TILE_COUNT);
+    }
+
+    function placeFood() {
+      let nextFood;
+      do {
+        nextFood = { x: randomTile(), y: randomTile() };
+      } while (snake.some(segment => segment.x === nextFood.x && segment.y === nextFood.y));
+      food = nextFood;
+    }
+
+    function resetState() {
+      snake = [
+        { x: 9, y: 10 },
+        { x: 8, y: 10 },
+        { x: 7, y: 10 },
+      ];
+      direction = { x: 1, y: 0 };
+      nextDirection = { x: 1, y: 0 };
+      score = 0;
+      paused = false;
+      gameOver = false;
+      tickDelay = INITIAL_SPEED;
+      inputLocked = false;
+      placeFood();
+      clampTickDelay();
+      updateScoreboard();
+      setStatus('', '대기 중');
+      draw();
+    }
+
+    function startGame() {
+      if (gameOver) {
+        resetState();
+      }
+      running = true;
+      paused = false;
+      hideOverlay();
+      setStatus('', '진행 중');
+      scheduleTick();
+    }
+
+    function pauseGame() {
+      if (!running || gameOver) return;
+      paused = !paused;
+      if (paused) {
+        clearTimeout(loopId);
+        setStatus('paused', '일시정지');
+        showOverlay('일시정지', '스페이스바를 누르거나 버튼을 눌러 다시 시작하세요.', '계속하기');
+      } else {
+        hideOverlay();
+        setStatus('', '진행 중');
+        scheduleTick();
+      }
+    }
+
+    function restartGame() {
+      clearTimeout(loopId);
+      running = false;
+      resetState();
+      showOverlay('다시 시작', '버튼을 누르면 새 게임이 시작됩니다.', '시작하기');
+    }
+
+    function endGame() {
+      gameOver = true;
+      running = false;
+      clearTimeout(loopId);
+      setStatus('over', '게임 오버');
+      showOverlay('게임 오버', `최종 점수: ${score}점`, '다시 시작');
+      draw();
+    }
+
+    function scheduleTick() {
+      clearTimeout(loopId);
+      if (running && !paused && !gameOver) {
+        loopId = setTimeout(tick, tickDelay);
+      }
+    }
+
+    function tick() {
+      direction = nextDirection;
+      inputLocked = false;
+      const head = {
+        x: snake[0].x + direction.x,
+        y: snake[0].y + direction.y,
+      };
+
+      const willEat = head.x === food.x && head.y === food.y;
+      const collisionWithWall = head.x < 0 || head.y < 0 || head.x >= TILE_COUNT || head.y >= TILE_COUNT;
+      const bodyToCheck = willEat ? snake : snake.slice(0, -1);
+      const collisionWithBody = bodyToCheck.some(segment => segment.x === head.x && segment.y === head.y);
+
+      if (collisionWithWall || collisionWithBody) {
+        endGame();
+        return;
+      }
+
+      snake.unshift(head);
+
+      if (willEat) {
+        score += 1;
+        if (score > bestScore) {
+          bestScore = score;
+          localStorage.setItem('snake-best-score', String(bestScore));
+        }
+        clampTickDelay();
+        updateScoreboard();
+        placeFood();
+      } else {
+        snake.pop();
+      }
+
+      draw();
+      scheduleTick();
+    }
+
+    function roundRect(x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
+
+    function drawGrid() {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.08)';
+      ctx.lineWidth = 1;
+      for (let i = 1; i < TILE_COUNT; i += 1) {
+        const pos = i * GRID_SIZE + 0.5;
+        ctx.beginPath();
+        ctx.moveTo(pos, 0);
+        ctx.lineTo(pos, canvas.height);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, pos);
+        ctx.lineTo(canvas.width, pos);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawFood() {
+      const cx = food.x * GRID_SIZE + GRID_SIZE / 2;
+      const cy = food.y * GRID_SIZE + GRID_SIZE / 2;
+      const radius = GRID_SIZE * 0.3;
+
+      ctx.save();
+      const gradient = ctx.createRadialGradient(cx - 4, cy - 4, 2, cx, cy, radius + 6);
+      gradient.addColorStop(0, '#fecaca');
+      gradient.addColorStop(1, '#ef4444');
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(cx + 1, cy - radius + 2);
+      ctx.quadraticCurveTo(cx + 6, cy - radius - 8, cx + 10, cy - radius + 1);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawSnake() {
+      snake.forEach((segment, index) => {
+        const x = segment.x * GRID_SIZE + 2;
+        const y = segment.y * GRID_SIZE + 2;
+        const size = GRID_SIZE - 4;
+        const radius = 7;
+
+        ctx.save();
+        const fill = ctx.createLinearGradient(x, y, x + size, y + size);
+        if (index === 0) {
+          fill.addColorStop(0, '#86efac');
+          fill.addColorStop(1, '#16a34a');
+        } else {
+          fill.addColorStop(0, '#4ade80');
+          fill.addColorStop(1, '#15803d');
+        }
+        ctx.fillStyle = fill;
+        roundRect(x, y, size, size, radius);
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        if (index === 0) {
+          const eyeOffsetX = direction.x === 0 ? 5 : (direction.x > 0 ? 8 : 4);
+          const eyeOffsetY = direction.y === 0 ? 6 : (direction.y > 0 ? 8 : 4);
+          const secondEyeX = direction.x === 0 ? size - 10 : eyeOffsetX;
+          const secondEyeY = direction.y === 0 ? eyeOffsetY : size - 10;
+
+          ctx.fillStyle = '#0f172a';
+          ctx.beginPath();
+          ctx.arc(x + eyeOffsetX, y + eyeOffsetY, 2.2, 0, Math.PI * 2);
+          ctx.arc(x + secondEyeX, y + secondEyeY, 2.2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      });
+    }
+
+    function draw() {
+      const background = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      background.addColorStop(0, '#0f172a');
+      background.addColorStop(1, '#020617');
+      ctx.fillStyle = background;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      drawGrid();
+      drawFood();
+      drawSnake();
+    }
+
+    function setDirectionFromInput(next) {
+      const opposite = direction.x + next.x === 0 && direction.y + next.y === 0;
+      const sameAsQueued = nextDirection.x === next.x && nextDirection.y === next.y;
+      if (inputLocked || opposite || sameAsQueued || gameOver) return;
+      nextDirection = next;
+      inputLocked = true;
+      if (!running && !paused) {
+        startGame();
+      }
+    }
+
+    function handleKeydown(event) {
+      const key = event.key.toLowerCase();
+      const directionMap = {
+        arrowup: { x: 0, y: -1 },
+        w: { x: 0, y: -1 },
+        arrowdown: { x: 0, y: 1 },
+        s: { x: 0, y: 1 },
+        arrowleft: { x: -1, y: 0 },
+        a: { x: -1, y: 0 },
+        arrowright: { x: 1, y: 0 },
+        d: { x: 1, y: 0 },
+      };
+
+      if (directionMap[key]) {
+        event.preventDefault();
+        setDirectionFromInput(directionMap[key]);
+        return;
+      }
+
+      if (key === ' ') {
+        event.preventDefault();
+        if (!running && !gameOver) {
+          startGame();
+        } else {
+          pauseGame();
+        }
+        return;
+      }
+
+      if (key === 'enter') {
+        event.preventDefault();
+        if (!running || gameOver || paused) {
+          if (paused) {
+            pauseGame();
+          } else {
+            startGame();
+          }
+        }
+        return;
+      }
+
+      if (key === 'r') {
+        event.preventDefault();
+        restartGame();
+      }
+    }
+
+    startButton.addEventListener('click', () => {
+      if (paused) {
+        pauseGame();
+      } else {
+        startGame();
+      }
+    });
+
+    pauseButton.addEventListener('click', pauseGame);
+    restartButton.addEventListener('click', restartGame);
+    document.addEventListener('keydown', handleKeydown);
+
+    document.querySelectorAll('[data-dir]').forEach(button => {
+      const mapping = {
+        up: { x: 0, y: -1 },
+        down: { x: 0, y: 1 },
+        left: { x: -1, y: 0 },
+        right: { x: 1, y: 0 },
+      };
+
+      const act = event => {
+        event.preventDefault();
+        const dir = button.dataset.dir;
+        setDirectionFromInput(mapping[dir]);
+      };
+
+      button.addEventListener('click', act);
+      button.addEventListener('touchstart', act, { passive: false });
+    });
+
+    resetState();
+    updateScoreboard();
+    bestScoreEl.textContent = String(bestScore);
+    draw();
+  </script>
+</body>
+</html>
