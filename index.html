@@ -3,210 +3,126 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Real-time Leaderboard</title>
+    <title>Game Hub & Leaderboard</title>
     <style>
-        /* 디자인 시스템 적용 */
         :root {
             --bg: #F5F5F7;
-            --bg2: rgba(255, 255, 255, 0.75);
-            --bg3: rgba(255, 255, 255, 0.95);
-            --border: rgba(0, 0, 0, 0.08);
+            --bg2: rgba(255, 255, 255, 0.8);
             --text: #1D1D1F;
             --accent: #0071E3;
-            --green: #34C759;
-            --radius: 18px;
-            --sans: -apple-system, BlinkMacSystemFont, "SF Pro KR", "SF Pro Text", sans-serif;
-            --glass: saturate(180%) blur(20px);
-            --shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
+            --radius: 20px;
+            --sans: -apple-system, BlinkMacSystemFont, "SF Pro KR", sans-serif;
         }
 
-        /* 다크 모드 자동 전환 */
         @media (prefers-color-scheme: dark) {
             :root {
                 --bg: #000000;
-                --bg2: rgba(28, 28, 30, 0.65);
-                --bg3: rgba(44, 44, 46, 0.85);
-                --border: rgba(255, 255, 255, 0.1);
+                --bg2: rgba(28, 28, 30, 0.8);
                 --text: #F5F5F7;
                 --accent: #0A84FF;
             }
         }
 
         body {
+            margin: 0;
             background-color: var(--bg);
             color: var(--text);
             font-family: var(--sans);
-            margin: 0;
             display: flex;
-            justify-content: center;
-            min-height: 100vh;
-            -webkit-font-smoothing: antialiased;
+            height: 100vh;
+            overflow: hidden;
         }
 
-        .container {
-            width: 100%;
-            max-width: 480px;
-            padding: 60px 20px;
-        }
-
-        header {
-            text-align: center;
-            margin-bottom: 40px;
-        }
-
-        header h1 {
-            font-size: 34px;
-            font-weight: 700;
-            margin: 0 0 8px 0;
-            letter-spacing: -0.5px;
-        }
-
-        header p {
-            font-size: 17px;
-            opacity: 0.6;
-            margin: 0;
-        }
-
-        /* 랭킹 리스트 영역 */
-        .card-list {
+        /* 왼쪽: 게임 플레이 영역 */
+        .game-section {
+            flex: 1;
             display: flex;
             flex-direction: column;
-            gap: 12px;
-            margin-bottom: 40px;
+            padding: 20px;
         }
 
-        .rank-card {
-            background: var(--bg2);
-            backdrop-filter: var(--glass);
-            -webkit-backdrop-filter: var(--glass);
-            border: 1px solid var(--border);
-            padding: 18px 24px;
+        #game-frame {
+            width: 100%;
+            flex: 1;
+            border: none;
             border-radius: var(--radius);
+            background: #fff;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        /* 오른쪽: 사이드바 (게임 선택 및 랭킹) */
+        .sidebar {
+            width: 350px;
+            background: var(--bg2);
+            backdrop-filter: blur(20px);
+            border-left: 1px solid rgba(125,125,125,0.2);
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: var(--shadow);
-            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            animation: slideUp 0.4s ease-out;
+            flex-direction: column;
+            padding: 25px;
+            overflow-y: auto;
         }
 
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* 상위권 강조 */
-        .rank-1 { border: 2px solid #FFD700; background: var(--bg3); }
-        .rank-2 { border: 1.5px solid #C0C0C0; }
-        .rank-3 { border: 1.5px solid #CD7F32; }
-
-        .info-group {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
-
-        .rank-number {
-            font-size: 14px;
-            font-weight: 800;
-            color: var(--accent);
-            width: 24px;
-        }
-
-        .name {
-            font-size: 17px;
-            font-weight: 600;
-        }
-
-        .score {
-            font-family: "SF Mono", ui-monospace, monospace;
-            font-weight: 700;
-            font-size: 17px;
-            color: var(--green);
-        }
-
-        /* 입력 패널 */
-        .input-panel {
-            background: var(--bg3);
-            border: 1px solid var(--border);
-            padding: 24px;
-            border-radius: 24px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-        }
-
-        .input-group {
+        .menu-title { font-size: 22px; font-weight: 700; margin-bottom: 20px; }
+        
+        .game-selector {
             display: flex;
             gap: 10px;
-            margin-bottom: 12px;
+            margin-bottom: 30px;
+            overflow-x: auto;
+            padding-bottom: 10px;
         }
 
-        input {
-            background: var(--bg);
-            border: 1px solid var(--border);
-            color: var(--text);
-            padding: 14px;
-            border-radius: 12px;
-            flex: 1;
-            font-size: 16px;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-
-        input:focus {
-            border-color: var(--accent);
-        }
-
-        button {
-            width: 100%;
+        .game-btn {
+            padding: 10px 18px;
             background: var(--accent);
             color: white;
             border: none;
-            padding: 16px;
             border-radius: 12px;
-            font-size: 16px;
-            font-weight: 600;
             cursor: pointer;
-            transition: opacity 0.2s, transform 0.1s;
+            white-space: nowrap;
+            font-weight: 600;
         }
 
-        button:active {
-            opacity: 0.9;
-            transform: scale(0.98);
+        .rank-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
 
-        .loading-text {
-            text-align: center;
-            font-size: 14px;
-            opacity: 0.5;
+        .rank-item {
+            background: rgba(125,125,125,0.1);
+            padding: 12px 16px;
+            border-radius: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
+
+        .rank-name { font-weight: 600; }
+        .rank-score { color: var(--accent); font-weight: 700; }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <header>
-            <h1>Leaderboard</h1>
-            <p>실시간 랭킹 시스템</p>
-        </header>
-
-        <div id="leaderboard" class="card-list">
-            <div class="loading-text">데이터를 불러오는 중...</div>
-        </div>
-
-        <div class="input-panel">
-            <div class="input-group">
-                <input type="text" id="userName" placeholder="플레이어 이름" maxlength="12">
-                <input type="number" id="userScore" placeholder="점수">
+    <div class="game-section">
+        <div class="game-selector" id="game-menu">
             </div>
-            <button id="submitBtn">기록 등록하기</button>
+        <iframe id="game-frame" src=""></iframe>
+    </div>
+
+    <div class="sidebar">
+        <div class="menu-title">실시간 랭킹</div>
+        <div id="leaderboard" class="rank-list">
+            <div style="opacity: 0.5;">게임을 선택해 주세요.</div>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, set, push, onValue, query, orderByChild, limitToLast } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { getDatabase, ref, onValue, query, orderByChild, limitToLast } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        // 사용자가 업로드한 게임 파일이 Firestore(collection) 문법을 사용하므로 함께 초기화합니다.
+        import { getFirestore, collection, addDoc, onSnapshot, query as fsQuery, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // Firebase 설정 적용
         const firebaseConfig = {
             apiKey: "AIzaSyAODEbMA_GBeksqrlNRMhwtNdLjNSvgwSw",
             authDomain: "game-c2924.firebaseapp.com",
@@ -218,70 +134,60 @@
         };
 
         const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
-        const rankRef = ref(db, 'ranks');
+        const db = getFirestore(app); // 게임 파일 내의 parent.db가 참조할 객체
 
-        // 1. 데이터 추가 로직
-        const submitBtn = document.getElementById('submitBtn');
-        const nameInput = document.getElementById('userName');
-        const scoreInput = document.getElementById('userScore');
-
-        submitBtn.onclick = () => {
-            const name = nameInput.value.trim();
-            const score = parseInt(scoreInput.value);
-
-            if (!name || isNaN(score)) {
-                alert("이름과 올바른 점수를 입력해 주세요.");
-                return;
+        // 전역 객체로 설정하여 iframe 내의 게임들이 접근할 수 있도록 함
+        window.db = {
+            collection: (name) => {
+                return {
+                    add: (data) => addDoc(collection(db, name), data)
+                };
             }
-
-            const newPostRef = push(rankRef);
-            set(newPostRef, {
-                name: name,
-                score: score,
-                timestamp: Date.now()
-            }).then(() => {
-                nameInput.value = '';
-                scoreInput.value = '';
-            });
         };
 
-        // 2. 실시간 랭킹 업데이트 로직 (상위 10개)
+        // --- 게임 리스트 설정 (새 게임 추가 시 이 부분만 수정) ---
+        const gameList = [
+            { id: "rankings_forge", title: "무기 강화", file: "random forge2.html" },
+            // { id: "rankings_clicker", title: "클리커 게임", file: "clicker.html" }
+        ];
+
+        const gameMenu = document.getElementById('game-menu');
+        const gameFrame = document.getElementById('game-frame');
         const leaderboard = document.getElementById('leaderboard');
-        const topRanksQuery = query(rankRef, orderByChild('score'), limitToLast(10));
 
-        onValue(topRanksQuery, (snapshot) => {
-            leaderboard.innerHTML = '';
-            const tempArray = [];
-
-            snapshot.forEach((child) => {
-                tempArray.push(child.val());
-            });
-
-            // 내림차순 정렬 (높은 점수가 위로)
-            tempArray.reverse().forEach((data, index) => {
-                const rank = index + 1;
-                const card = document.createElement('div');
-                
-                // 순위별 스타일 클래스 추가
-                let rankClass = 'rank-card';
-                if (rank <= 3) rankClass += ` rank-${rank}`;
-                card.className = rankClass;
-
-                card.innerHTML = `
-                    <div class="info-group">
-                        <span class="rank-number">${rank}</span>
-                        <span class="name">${data.name}</span>
-                    </div>
-                    <div class="score">${data.score.toLocaleString()} PT</div>
-                `;
-                leaderboard.appendChild(card);
-            });
-
-            if (tempArray.length === 0) {
-                leaderboard.innerHTML = '<div class="loading-text">등록된 기록이 없습니다. 첫 기록을 남겨보세요!</div>';
-            }
+        gameList.forEach(game => {
+            const btn = document.createElement('button');
+            btn.className = 'game-btn';
+            btn.innerText = game.title;
+            btn.onclick = () => loadGame(game);
+            gameMenu.appendChild(btn);
         });
+
+        function loadGame(game) {
+            gameFrame.src = game.file;
+            updateLeaderboard(game.id);
+        }
+
+        function updateLeaderboard(collectionName) {
+            const q = fsQuery(collection(db, collectionName), orderBy("score", "desc"), limit(10));
+            
+            onSnapshot(q, (snapshot) => {
+                leaderboard.innerHTML = '';
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const item = document.createElement('div');
+                    item.className = 'rank-item';
+                    item.innerHTML = `
+                        <span class="rank-name">${data.name}</span>
+                        <span class="rank-score">${data.score}</span>
+                    `;
+                    leaderboard.appendChild(item);
+                });
+            });
+        }
+
+        // 첫 번째 게임 자동 실행
+        if(gameList.length > 0) loadGame(gameList[0]);
     </script>
 </body>
 </html>
