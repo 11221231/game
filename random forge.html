@@ -245,6 +245,8 @@
 
         function updateUI() {
             levelTxt.innerText = `+${currentLv}`;
+	// 강화 수치를 점수로 전달
+  	if (window.parent) window.parent.currentScore = currentLv;
             
             // 등급별 이름 및 아이콘 설정
             const nameIdx = Math.min(Math.floor(currentLv / 3), itemNames.length - 1);
