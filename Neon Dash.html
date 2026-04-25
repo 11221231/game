@@ -128,23 +128,26 @@
 
         // --- [Firebase 랭킹 저장 로직] ---
         async function saveRank(finalScore) {
-            // 최소 10점 이상일 때만 등록 권유
+            // 최소 1점 이상일 때만 등록 권유
             if (finalScore < 1) return;
 
-            if (parent && parent.db) {
+            // 부모 창(index.html)에 있는 db 브릿지 객체 확인
+            if (parent && parent.window.db) {
                 setTimeout(() => {
                     const playerName = prompt(`${finalScore}점 달성! 랭킹에 등록할 이름을 입력하세요:`, "익명");
                     if (playerName) {
-                        // index.html의 로직에 따라 컬렉션명 자동 생성 (rankings_Neon_Dash)
-                        parent.db.collection("rankings_Neon_Dash").add({
+                        // "Neon_Dash" 라는 고유 식별자로 부모창의 DB 함수 호출
+                        parent.window.db.saveScore("Neon_Dash", {
                             name: playerName,
                             score: parseInt(finalScore),
-                            timestamp: new Date()
+                            timestamp: Date.now()
                         }).then(() => {
                             alert("랭킹에 등록되었습니다!");
                         }).catch(e => console.error("랭킹 등록 실패:", e));
                     }
                 }, 500);
+            } else {
+                console.warn("부모 창의 DB 브릿지를 찾을 수 없습니다.");
             }
         }
 
