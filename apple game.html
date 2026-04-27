@@ -2,70 +2,249 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>🍎 사과 게임</title>
+<title>🍎 사과 게임 with 랭킹 </title>
 <style>
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #f9f9f9; margin-top: 50px; }
-    h1 { color: #d32f2f; }
-    #game-info { display: flex; justify-content: space-between; width: 420px; margin: 15px 0; font-size: 18px; font-weight: bold; }
-    #board { display: grid; grid-template-columns: repeat(10, 40px); grid-template-rows: repeat(10, 40px); gap: 2px; background-color: #e0e0e0; border: 2px solid #bdbdbd; padding: 4px; user-select: none; border-radius: 8px; }
-    .cell { width: 40px; height: 40px; background-color: #fff; display: flex; justify-content: center; align-items: center; font-size: 20px; font-weight: bold; color: #333; cursor: pointer; border-radius: 4px; box-sizing: border-box; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: background-color 0.1s; }
-    .cell.selected { background-color: #ffcdd2; border: 2px solid #f44336; }
-    .cell.cleared { visibility: hidden; }
-    button { margin-top: 20px; padding: 10px 20px; font-size: 16px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 5px; }
+    body { 
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+        display: flex; 
+        flex-direction: column; 
+        align-items: center; 
+        background-color: #f4f6f8; 
+        margin-top: 30px;
+    }
+    h1 { color: #d32f2f; margin-bottom: 5px; }
+    
+    .container {
+        display: flex;
+        gap: 40px;
+        align-items: flex-start;
+    }
+
+    #game-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    #game-info { 
+        display: flex; 
+        justify-content: space-between; 
+        width: 100%; 
+        margin: 15px 0; 
+        font-size: 18px; 
+        font-weight: bold; 
+    }
+    
+    #board { 
+        display: grid; 
+        grid-template-columns: repeat(10, 50px); 
+        grid-template-rows: repeat(10, 50px); 
+        gap: 5px; 
+        background-color: #e0e0e0; 
+        border: 2px solid #bdbdbd; 
+        padding: 10px; 
+        user-select: none;
+        border-radius: 12px;
+        position: relative; /* 오버레이 위치 계산을 위해 필수 */
+    }
+    
+    /* 사과 모양 CSS */
+    .cell { 
+        width: 45px; 
+        height: 45px; 
+        background: radial-gradient(circle at 15px 15px, #ff5e5e, #d32f2f);
+        border-radius: 50% 50% 50% 50% / 45% 45% 60% 60%;
+        box-shadow: inset -3px -3px 6px rgba(0,0,0,0.3), 1px 2px 3px rgba(0,0,0,0.2);
+        display: flex; 
+        justify-content: center; 
+        align-items: center; 
+        font-size: 22px; 
+        font-weight: 900; 
+        color: white;
+        cursor: pointer; 
+        position: relative;
+        transition: transform 0.1s, filter 0.1s;
+        border: 2px solid transparent; /* 기본 테두리 */
+        box-sizing: border-box; /* 테두리가 크기에 포함되도록 */
+    }
+
+    /* 사과 꼭지와 잎사귀 */
+    .cell::before {
+        content: '';
+        position: absolute;
+        top: -4px;
+        left: 20px;
+        width: 4px;
+        height: 8px;
+        background-color: #5d4037;
+        border-radius: 2px;
+        transform: rotate(-15deg);
+    }
+    .cell::after {
+        content: '';
+        position: absolute;
+        top: -6px;
+        left: 22px;
+        width: 12px;
+        height: 8px;
+        background-color: #4CAF50;
+        border-radius: 10px 0 10px 0;
+        box-shadow: inset 1px 1px 2px rgba(255,255,255,0.4);
+    }
+
+    /* 드래그 선택 시 효과 (강화됨) */
+    .cell.selected { 
+        filter: brightness(1.2) drop-shadow(0 0 10px #2196F3);
+        transform: scale(1.08);
+        border: 2px solid #2196F3; /* 굵은 파란색 테두리 추가 */
+    }
+
+
+    .cell.cleared { 
+        visibility: hidden; 
+    }
+
+    /* 전체 선택 영역 오버레이 (새로 추가됨) */
+    #drag-overlay {
+        position: absolute;
+        background-color: rgb(24, 149, 255, 0.20); /* 반투명 노란색 배경 */
+        border: 3px solid #2196F3; /* 굵은 노란색 테두리 */
+        border-radius: 8px;
+        pointer-events: none; /* 마우스 이벤트를 통과시켜 사과를 클릭할 수 있게 함 */
+        display: none; /* 기본적으로 숨김 */
+        z-index: 10; /* 사과 위에 표시 */
+    }
+
+    button {
+        margin-top: 20px;
+        padding: 10px 20px;
+        font-size: 16px;
+        cursor: pointer;
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        font-weight: bold;
+        width: 100%;
+    }
     button:hover { background-color: #45a049; }
+
+    /* 랭킹 보드 스타일 */
+    #ranking-board {
+        width: 250px;
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    #ranking-board h2 {
+        margin-top: 0;
+        font-size: 20px;
+        color: #333;
+        text-align: center;
+        border-bottom: 2px solid #eee;
+        padding-bottom: 10px;
+    }
+    .rank-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    .rank-item:nth-child(1) .rank-name { font-weight: bold; color: #d4af37; } 
+    .rank-item:nth-child(2) .rank-name { font-weight: bold; color: #c0c0c0; } 
+    .rank-item:nth-child(3) .rank-name { font-weight: bold; color: #cd7f32; } 
+    .rank-score { font-weight: bold; color: #2196F3; }
 </style>
 </head>
 <body>
     <h1>🍎 사과 게임</h1>
-    <p>마우스로 드래그하여 선택한 칸 안의 숫자 합이 <strong>10</strong>이 되도록 만드세요!</p>
+    <p>드래그하여 사과 안의 숫자 합이 <strong>10</strong>이 되도록 만드세요!</p>
     
-    <div id="game-info">
-        <div>점수: <span id="score" style="color: #2196F3;">0</span></div>
-        <div>남은 시간: <span id="time" style="color: #f44336;">120</span>초</div>
-    </div>
-    
-    <div id="board"></div>
-    <button onclick="initGame()">게임 재시작</button>
+    <div class="container">
+        <div id="game-container">
+            <div id="game-info">
+                <div>점수: <span id="score" style="color: #2196F3;">0</span></div>
+                <div>남은 시간: <span id="time" style="color: #f44336;">120</span>초</div>
+            </div>
+            
+            <div id="board">
+                <div id="drag-overlay"></div>
+            </div>
+            <button id="restart-btn">게임 재시작</button>
+        </div>
 
-    <script>
+        <div id="ranking-board">
+            <h2>🏆 명예의 전당</h2>
+            <div id="ranking-list">
+                <div style="text-align: center; color: #888; font-size: 14px;">데이터를 불러오는 중...</div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        // TODO: 본인의 Firebase 프로젝트 설정으로 변경하세요!
+        const firebaseConfig = {
+            apiKey: "AIzaSyAODEbMA_GBeksqrlNRMhwtNdLjNSvgwSw",
+            authDomain: "game-c2924.firebaseapp.com",
+            projectId:"game-c2924",
+            storageBucket:"game-c2924.firebasestorage.app",
+            messagingSenderId: "423929694317",
+            appId: "1:423929694317:web:e995dcf1ad70f146629764"
+        };
+
+        // Firebase 초기화
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // --- 게임 로직 ---
         const board = document.getElementById('board');
         const scoreDisplay = document.getElementById('score');
         const timeDisplay = document.getElementById('time');
-        const cols = 10; const rows = 10;
+        const restartBtn = document.getElementById('restart-btn');
+        const rankingList = document.getElementById('ranking-list');
+        const dragOverlay = document.getElementById('drag-overlay'); // 오버레이 요소 가져오기
         
-        let score = 0; let timeLeft = 120; let cells = [];
-        let isDragging = false; let startCell = null; let currentSelection = []; let timer;
+        const cols = 10;
+        const rows = 10;
+        let score = 0;
+        let timeLeft = 120;
+        let cells = [];
+        let isDragging = false;
+        let startCell = null;
+        let currentSelection = [];
+        let timer;
 
-        // --- 부모 창으로 점수 전송 ---
-        async function saveRank(finalScore) {
-            if (finalScore < 1) return;
-            if (parent && parent.window.db) {
-                setTimeout(() => {
-                    const playerName = prompt(`${finalScore}점 달성! 랭킹에 등록할 이름을 입력하세요:`, "익명");
-                    if (playerName) {
-                        parent.window.db.saveScore("apple_game", {
-                            name: playerName,
-                            score: parseInt(finalScore),
-                            timestamp: Date.now()
-                        }).then(() => alert("랭킹에 등록되었습니다!"))
-                          .catch(e => console.error("랭킹 등록 실패:", e));
-                    }
-                }, 500);
-            }
-        }
+        // 초기 랭킹 로드
+        loadRankings();
 
         function initGame() {
-            board.innerHTML = ''; cells = []; score = 0; timeLeft = 120;
-            scoreDisplay.textContent = score; timeDisplay.textContent = timeLeft; isDragging = false;
+            board.innerHTML = '<div id="drag-overlay"></div>'; // 오버레이 요소 유지
+            const newDragOverlay = document.getElementById('drag-overlay');
+            cells = [];
+            score = 0;
+            timeLeft = 120;
+            scoreDisplay.textContent = score;
+            timeDisplay.textContent = timeLeft;
+            isDragging = false;
+            newDragOverlay.style.display = 'none'; // 시작 시 오버레이 숨김
 
             for (let r = 0; r < rows; r++) {
                 for (let c = 0; c < cols; c++) {
                     const cell = document.createElement('div');
-                    cell.classList.add('cell'); cell.dataset.r = r; cell.dataset.c = c;
+                    cell.classList.add('cell');
+                    cell.dataset.r = r;
+                    cell.dataset.c = c;
                     cell.textContent = Math.floor(Math.random() * 9) + 1; 
+                    
                     cell.addEventListener('mousedown', startDrag);
                     cell.addEventListener('mouseenter', dragOver);
-                    board.appendChild(cell); cells.push(cell);
+                    
+                    board.appendChild(cell);
+                    cells.push(cell);
                 }
             }
 
@@ -74,16 +253,16 @@
                 timeLeft--;
                 timeDisplay.textContent = timeLeft;
                 if (timeLeft <= 0) {
-                    clearInterval(timer);
-                    alert(`게임 종료! 최종 점수는 ${score}점 입니다.`);
-                    saveRank(score); // 게임 종료 시 랭킹 함수 호출
+                    endGame();
                 }
             }, 1000);
         }
 
         function startDrag(e) {
             if (timeLeft <= 0 || e.target.classList.contains('cleared')) return;
-            isDragging = true; startCell = e.target; updateSelection(startCell);
+            isDragging = true;
+            startCell = e.target;
+            updateSelection(startCell);
         }
 
         function dragOver(e) {
@@ -91,31 +270,62 @@
             updateSelection(e.target);
         }
 
+        // 선택 영역 업데이트 및 오버레이 표시 로직 (핵심 수정 부분)
         function updateSelection(endCell) {
-            cells.forEach(c => c.classList.remove('selected')); currentSelection = [];
-            const startR = parseInt(startCell.dataset.r); const startC = parseInt(startCell.dataset.c);
-            const endR = parseInt(endCell.dataset.r); const endC = parseInt(endCell.dataset.c);
-            const minR = Math.min(startR, endR); const maxR = Math.max(startR, endR);
-            const minC = Math.min(startC, endC); const maxC = Math.max(startC, endC);
+            cells.forEach(c => c.classList.remove('selected'));
+            currentSelection = [];
 
+            const startR = parseInt(startCell.dataset.r);
+            const startC = parseInt(startCell.dataset.c);
+            const endR = parseInt(endCell.dataset.r);
+            const endC = parseInt(endCell.dataset.c);
+
+            const minR = Math.min(startR, endR);
+            const maxR = Math.max(startR, endR);
+            const minC = Math.min(startC, endC);
+            const maxC = Math.max(startC, endC);
+
+            // 1. 개별 셀 선택 표시
             for (let r = minR; r <= maxR; r++) {
                 for (let c = minC; c <= maxC; c++) {
                     const cell = cells.find(cl => cl.dataset.r == r && cl.dataset.c == c);
                     if (cell && !cell.classList.contains('cleared')) {
-                        cell.classList.add('selected'); currentSelection.push(cell);
+                        cell.classList.add('selected');
+                        currentSelection.push(cell);
                     }
                 }
             }
+
+            // 2. 전체 선택 영역 오버레이 위치 및 크기 계산
+            // 보드의 크기 및 패딩값 정보를 가져와야 정확한 계산이 가능합니다.
+            const currentDragOverlay = document.getElementById('drag-overlay');
+            const cellWidth = 50 + 5; // 너비(50) + 갭(5)
+            const cellHeight = 50 + 5; // 높이(50) + 갭(5)
+            const padding = 10; // 보드의 padding값
+
+            currentDragOverlay.style.left = `${padding + minC * cellWidth}px`;
+            currentDragOverlay.style.top = `${padding + minR * cellHeight}px`;
+            currentDragOverlay.style.width = `${(maxC - minC + 1) * cellWidth - 5}px`; // 마지막 갭 제외
+            currentDragOverlay.style.height = `${(maxR - minR + 1) * cellHeight - 5}px`;
+            currentDragOverlay.style.display = 'block'; // 오버레이 표시
         }
 
         function endDrag() {
             if (!isDragging) return;
             isDragging = false;
+
+            // 오버레이 숨김
+            const currentDragOverlay = document.getElementById('drag-overlay');
+            currentDragOverlay.style.display = 'none';
+
             let sum = currentSelection.reduce((acc, cell) => acc + parseInt(cell.textContent), 0);
 
             if (sum === 10) {
-                currentSelection.forEach(cell => { cell.classList.add('cleared'); cell.classList.remove('selected'); });
-                score += currentSelection.length * 10;
+                currentSelection.forEach(cell => {
+                    cell.classList.add('cleared');
+                    cell.classList.remove('selected');
+                });
+                score += currentSelection.length * 10; 
                 scoreDisplay.textContent = score;
             } else {
                 cells.forEach(c => c.classList.remove('selected'));
@@ -123,7 +333,59 @@
             currentSelection = [];
         }
 
+        async function endGame() {
+            clearInterval(timer);
+            const playerName = prompt(`게임 종료! 최종 점수는 ${score}점 입니다.\n랭킹에 등록할 이름을 입력하세요:`, "Player");
+            
+            if (playerName && score > 0) {
+                try {
+                    await addDoc(collection(db, "rankings"), {
+                        name: playerName,
+                        score: score,
+                        timestamp: new Date()
+                    });
+                    alert("점수가 등록되었습니다!");
+                    loadRankings(); 
+                } catch (e) {
+                    console.error("Error adding document: ", e);
+                    alert("점수 저장에 실패했습니다. Firebase 설정을 확인해주세요.");
+                }
+            }
+        }
+
+        async function loadRankings() {
+            try {
+                const q = query(collection(db, "rankings"), orderBy("score", "desc"), limit(10));
+                const querySnapshot = await getDocs(q);
+                
+                rankingList.innerHTML = ''; 
+                
+                let rank = 1;
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const div = document.createElement('div');
+                    div.className = 'rank-item';
+                    div.innerHTML = `
+                        <span class="rank-name">${rank}. ${data.name}</span>
+                        <span class="rank-score">${data.score}점</span>
+                    `;
+                    rankingList.appendChild(div);
+                    rank++;
+                });
+
+                if (rankingList.innerHTML === '') {
+                    rankingList.innerHTML = '<div style="text-align: center; color: #888; font-size: 14px;">아직 등록된 랭킹이 없습니다.</div>';
+                }
+            } catch (e) {
+                console.error("Error loading rankings: ", e);
+                rankingList.innerHTML = '<div style="text-align: center; color: red; font-size: 14px;">랭킹을 불러올 수 없습니다.</div>';
+            }
+        }
+
         document.addEventListener('mouseup', endDrag);
+        restartBtn.addEventListener('click', initGame);
+
+        // 초기 실행
         initGame();
     </script>
 </body>
