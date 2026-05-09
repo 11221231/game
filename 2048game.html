@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>2048</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Clear+Sans:wght@400;700&display=swap');
+
+        body {
+            background-color: #faf8ef;
+            color: #776e65;
+            font-family: 'Clear Sans', 'Helvetica Neue', Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            touch-action: none; /* 모바일에서 스와이프 시 화면 스크롤 방지 */
+        }
+
+        #game-container {
+            position: relative;
+            background-color: #bbada0;
+            border-radius: 6px;
+            width: 320px;
+            height: 320px;
+            padding: 10px;
+            box-sizing: border-box;
+            touch-action: none;
+        }
+
+        @media (min-width: 500px) {
+            #game-container {
+                width: 420px;
+                height: 420px;
+                padding: 15px;
+            }
+        }
+
+        /* 배경 격자 */
+        .grid-row {
+            display: flex;
+            margin-bottom: 10px;
+        }
+        @media (min-width: 500px) {
+            .grid-row { margin-bottom: 15px; }
+        }
+        .grid-row:last-child { margin-bottom: 0; }
+        
+        .grid-cell {
+            width: 65px;
+            height: 65px;
+            border-radius: 3px;
+            background-color: rgba(238, 228, 218, 0.35);
+            margin-right: 10px;
+        }
+        @media (min-width: 500px) {
+            .grid-cell {
+                width: 86.25px;
+                height: 86.25px;
+                margin-right: 15px;
+            }
+        }
+        .grid-cell:last-child { margin-right: 0; }
+
+        /* 타일 컨테이너 (절대 위치 지정을 위해) */
+        #tile-container {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            bottom: 10px;
+            z-index: 10;
+        }
+        @media (min-width: 500px) {
+            #tile-container {
+                top: 15px; left: 15px; right: 15px; bottom: 15px;
+            }
+        }
+
+        /* 개별 타일 스타일 */
+        .tile {
+            position: absolute;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 3px;
+            font-weight: bold;
+            transition: 100ms ease-in-out;
+            transition-property: transform;
+            width: 65px;
+            height: 65px;
+            font-size: 35px;
+        }
+        @media (min-width: 500px) {
+            .tile {
+                width: 86.25px;
+                height: 86.25px;
+                font-size: 45px;
+            }
+        }
+
+        /* 등장 애니메이션 */
+        .tile-new {
+            animation: appear 200ms ease 100ms;
+            animation-fill-mode: backwards;
+        }
+        
+        /* 병합 애니메이션 */
+        .tile-merged {
+            animation: pop 200ms ease 100ms;
+            animation-fill-mode: backwards;
+        }
+
+        @keyframes appear {
+            0% { opacity: 0; transform: scale(0); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        @keyframes pop {
+            0% { transform: scale(0); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        /* 위치 계산 변수 (JS에서 동적 할당을 피하기 위해 CSS 클래스 사용) */
+        /* 모바일 (320px) */
+        :root {
+            --cell-size: 65px;
+            --cell-gap: 10px;
+        }
+        /* PC (420px) */
+        @media (min-width: 500px) {
+            :root {
+                --cell-size: 86.25px;
+                --cell-gap: 15px;
+            }
+        }
+
+        /* 타일 색상 설정 */
+        .tile-2 { background: #eee4da; color: #776e65; }
+        .tile-4 { background: #ede0c8; color: #776e65; }
+        .tile-8 { background: #f2b179; color: #f9f6f2; }
+        .tile-16 { background: #f59563; color: #f9f6f2; }
+        .tile-32 { background: #f67c5f; color: #f9f6f2; }
+        .tile-64 { background: #f65e3b; color: #f9f6f2; }
+        .tile-128 { background: #edcf72; color: #f9f6f2; font-size: 30px; box-shadow: 0 0 30px 10px rgba(243, 215, 116, 0.2381), inset 0 0 0 1px rgba(255, 255, 255, 0.14286); }
+        .tile-256 { background: #edcc61; color: #f9f6f2; font-size: 30px; box-shadow: 0 0 30px 10px rgba(243, 215, 116, 0.31746), inset 0 0 0 1px rgba(255, 255, 255, 0.19048); }
+        .tile-512 { background: #edc850; color: #f9f6f2; font-size: 30px; box-shadow: 0 0 30px 10px rgba(243, 215, 116, 0.39683), inset 0 0 0 1px rgba(255, 255, 255, 0.2381); }
+        .tile-1024 { background: #edc53f; color: #f9f6f2; font-size: 25px; box-shadow: 0 0 30px 10px rgba(243, 215, 116, 0.47619), inset 0 0 0 1px rgba(255, 255, 255, 0.28571); }
+        .tile-2048 { background: #edc22e; color: #f9f6f2; font-size: 25px; box-shadow: 0 0 30px 10px rgba(243, 215, 116, 0.55556), inset 0 0 0 1px rgba(255, 255, 255, 0.33333); }
+        .tile-super { background: #3c3a32; color: #f9f6f2; font-size: 25px; }
+
+        @media (min-width: 500px) {
+            .tile-128, .tile-256, .tile-512 { font-size: 40px; }
+            .tile-1024, .tile-2048, .tile-super { font-size: 30px; }
+        }
+
+        /* 게임 오버 오버레이 */
+        #game-over-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(238, 228, 218, 0.73);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+        #game-over-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="w-[320px] sm:w-[420px] mb-4 flex justify-between items-start">
+        <h1 class="text-5xl sm:text-6xl font-bold text-[#776e65]">2048</h1>
+        <div class="flex gap-2 text-white">
+            <div class="bg-[#bbada0] rounded px-4 py-1 text-center min-w-[70px]">
+                <div class="text-[#eee4da] text-xs font-bold uppercase">Score</div>
+                <div id="score" class="font-bold text-xl leading-5">0</div>
+            </div>
+            <div class="bg-[#bbada0] rounded px-4 py-1 text-center min-w-[70px]">
+                <div class="text-[#eee4da] text-xs font-bold uppercase">Best</div>
+                <div id="best-score" class="font-bold text-xl leading-5">0</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="w-[320px] sm:w-[420px] mb-8 flex justify-between items-center">
+        <p class="text-[#776e65] text-sm sm:text-base font-medium">타일을 합쳐서 <strong>2048</strong>을 만드세요!</p>
+        <button id="restart-btn" class="bg-[#8f7a66] hover:bg-[#9f8b77] text-[#f9f6f2] font-bold py-2 px-4 rounded transition-colors">
+            New Game
+        </button>
+    </div>
+
+    <div id="game-container">
+        <!-- 배경 격자 -->
+        <div class="grid-row"><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div></div>
+        <div class="grid-row"><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div></div>
+        <div class="grid-row"><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div></div>
+        <div class="grid-row"><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div></div>
+        
+        <!-- 동적으로 타일이 생성될 공간 -->
+        <div id="tile-container"></div>
+
+        <!-- 게임 오버 화면 -->
+        <div id="game-over-overlay">
+            <h2 class="text-4xl font-bold text-[#776e65] mb-4">Game Over!</h2>
+            <button id="try-again-btn" class="bg-[#8f7a66] text-[#f9f6f2] font-bold py-3 px-6 rounded text-lg hover:bg-[#9f8b77] transition-colors">
+                Try again
+            </button>
+        </div>
+    </div>
+
+    <p class="mt-8 text-sm text-[#776e65] text-center max-w-[420px] px-4">
+        <strong class="uppercase">How to play:</strong> 방향키를 사용하거나 화면을 스와이프하여 타일을 움직이세요. 같은 숫자의 타일이 부딪히면 하나로 합쳐집니다!
+    </p>
+
+    <script>
+        const tileContainer = document.getElementById('tile-container');
+        const scoreElement = document.getElementById('score');
+        const bestScoreElement = document.getElementById('best-score');
+        const gameOverOverlay = document.getElementById('game-over-overlay');
+        const restartBtn = document.getElementById('restart-btn');
+        const tryAgainBtn = document.getElementById('try-again-btn');
+
+        let board = [];
+        let score = 0;
+        let bestScore = localStorage.getItem('2048-best-score') || 0;
+        let isGameOver = false;
+
+        bestScoreElement.textContent = bestScore;
+
+        // 게임 초기화
+        function initGame() {
+            board = [
+                [0, 0, 0, 0],
+                [0, 0, 0, 0],
+                [0, 0, 0, 0],
+                [0, 0, 0, 0]
+            ];
+            score = 0;
+            isGameOver = false;
+            scoreElement.textContent = score;
+            gameOverOverlay.classList.remove('active');
+            
+            // 기존 타일 DOM 제거
+            tileContainer.innerHTML = '';
+
+            // 시작할 때 랜덤 타일 2개 생성
+            addRandomTile();
+            addRandomTile();
+            updateDOM();
+        }
+
+        // 빈 칸 찾기
+        function getEmptyCells() {
+            const emptyCells = [];
+            for (let r = 0; r < 4; r++) {
+                for (let c = 0; c < 4; c++) {
+                    if (board[r][c] === 0) {
+                        emptyCells.push({ r, c });
+                    }
+                }
+            }
+            return emptyCells;
+        }
+
+        // 랜덤 위치에 2 또는 4 타일 추가
+        function addRandomTile() {
+            const emptyCells = getEmptyCells();
+            if (emptyCells.length === 0) return;
+
+            const randomCell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+            const value = Math.random() < 0.9 ? 2 : 4;
+            
+            board[randomCell.r][randomCell.c] = {
+                value: value,
+                isNew: true,
+                isMerged: false,
+                previousPosition: null
+            };
+        }
+
+        // 보드 이동 및 병합 로직 (핵심)
+        function move(direction) {
+            if (isGameOver) return;
+
+            let moved = false;
+            
+            // 이동 방향에 맞춰 배열을 조작하기 쉽게 회전/반전 시킴
+            // 모든 연산은 '왼쪽(Left)'으로 밀어붙이는 것으로 통일
+            let workingBoard = cloneBoard(board);
+            
+            if (direction === 'Right') workingBoard = reverseRows(workingBoard);
+            else if (direction === 'Up') workingBoard = transpose(workingBoard);
+            else if (direction === 'Down') workingBoard = reverseRows(transpose(workingBoard));
+
+            // 왼쪽으로 슬라이드 & 병합
+            for (let r = 0; r < 4; r++) {
+                let row = workingBoard[r];
+                // 1. 0 제거 (압축)
+                let newRow = row.filter(val => val !== 0);
+                
+                // 2. 병합
+                for (let c = 0; c < newRow.length - 1; c++) {
+                    if (newRow[c].value === newRow[c + 1].value && !newRow[c].isMerged && !newRow[c+1].isMerged) {
+                        newRow[c].value *= 2;
+                        newRow[c].isMerged = true;
+                        score += newRow[c].value;
+                        newRow.splice(c + 1, 1);
+                        moved = true;
+                    }
+                }
+                
+                // 3. 다시 4칸으로 채우기
+                while (newRow.length < 4) {
+                    newRow.push(0);
+                }
+
+                // 이동 여부 체크
+                for(let c = 0; c < 4; c++) {
+                    if(workingBoard[r][c] !== 0 && newRow[c] === 0) moved = true;
+                    else if(workingBoard[r][c] === 0 && newRow[c] !== 0) moved = true;
+                    else if(workingBoard[r][c] !== 0 && newRow[c] !== 0 && workingBoard[r][c].value !== newRow[c].value) moved = true;
+                }
+
+                workingBoard[r] = newRow;
+            }
+
+            // 배열을 원래 방향으로 복구
+            if (direction === 'Right') workingBoard = reverseRows(workingBoard);
+            else if (direction === 'Up') workingBoard = transpose(workingBoard);
+            else if (direction === 'Down') workingBoard = transpose(reverseRows(workingBoard));
+
+            if (moved) {
+                // 이전 상태 초기화
+                for (let r = 0; r < 4; r++) {
+                    for (let c = 0; c < 4; c++) {
+                        if(workingBoard[r][c] !== 0) {
+                           workingBoard[r][c].isNew = false;
+                        }
+                    }
+                }
+
+                board = workingBoard;
+                addRandomTile();
+                updateDOM();
+                
+                updateScore();
+                checkGameOver();
+            }
+            
+            // 병합 상태 플래그 초기화
+            for (let r = 0; r < 4; r++) {
+                for (let c = 0; c < 4; c++) {
+                    if (board[r][c] !== 0) {
+                        board[r][c].isMerged = false;
+                    }
+                }
+            }
+        }
+
+        function cloneBoard(b) {
+            return b.map(row => row.map(cell => cell === 0 ? 0 : {...cell}));
+        }
+
+        function reverseRows(b) {
+            return b.map(row => [...row].reverse());
+        }
+
+        function transpose(b) {
+            let newBoard = [[0,0,0,0], [0,0,0,0], [0,0,0,0], [0,0,0,0]];
+            for (let r = 0; r < 4; r++) {
+                for (let c = 0; c < 4; c++) {
+                    newBoard[c][r] = b[r][c];
+                }
+            }
+            return newBoard;
+        }
+
+        // 화면 업데이트
+        function updateDOM() {
+            tileContainer.innerHTML = '';
+            
+            for (let r = 0; r < 4; r++) {
+                for (let c = 0; c < 4; c++) {
+                    const cell = board[r][c];
+                    if (cell !== 0) {
+                        const tileDiv = document.createElement('div');
+                        let tileClass = cell.value > 2048 ? 'tile-super' : `tile-${cell.value}`;
+                        
+                        tileDiv.className = `tile ${tileClass}`;
+                        tileDiv.textContent = cell.value;
+                        
+                        // 위치 계산 (CSS 변수 활용)
+                        tileDiv.style.transform = `translate(calc(${c} * (var(--cell-size) + var(--cell-gap))), calc(${r} * (var(--cell-size) + var(--cell-gap))))`;
+
+                        if (cell.isNew) {
+                            tileDiv.classList.add('tile-new');
+                        }
+                        if (cell.isMerged) {
+                            tileDiv.classList.add('tile-merged');
+                        }
+
+                        tileContainer.appendChild(tileDiv);
+                    }
+                }
+            }
+        }
+
+        function updateScore() {
+            scoreElement.textContent = score;
+            if (score > bestScore) {
+                bestScore = score;
+                bestScoreElement.textContent = bestScore;
+                localStorage.setItem('2048-best-score', bestScore);
+            }
+        }
+
+        function checkGameOver() {
+            // 빈 공간이 있으면 게임 진행 가능
+            if (getEmptyCells().length > 0) return;
+
+            // 인접한 타일 중 같은 값이 있는지 확인
+            for (let r = 0; r < 4; r++) {
+                for (let c = 0; c < 4; c++) {
+                    const val = board[r][c].value;
+                    if (r < 3 && board[r+1][c].value === val) return; // 아래 확인
+                    if (c < 3 && board[r][c+1].value === val) return; // 오른쪽 확인
+                }
+            }
+
+            // 움직일 수 없음 -> 게임 오버
+            isGameOver = true;
+            setTimeout(() => {
+                gameOverOverlay.classList.add('active');
+            }, 500); // 애니메이션 후 띄우기
+        }
+
+        // 이벤트 리스너 설정
+        restartBtn.addEventListener('click', initGame);
+        tryAgainBtn.addEventListener('click', initGame);
+
+        // 키보드 입력
+        document.addEventListener('keydown', (e) => {
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                e.preventDefault(); // 방향키 스크롤 방지
+                switch(e.key) {
+                    case 'ArrowUp': move('Up'); break;
+                    case 'ArrowDown': move('Down'); break;
+                    case 'ArrowLeft': move('Left'); break;
+                    case 'ArrowRight': move('Right'); break;
+                }
+            }
+        });
+
+        // 모바일 터치(스와이프) 입력
+        let touchStartX = 0;
+        let touchStartY = 0;
+
+        const gameContainer = document.getElementById('game-container');
+
+        gameContainer.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        }, {passive: false});
+
+        gameContainer.addEventListener('touchmove', (e) => {
+            e.preventDefault(); // 스와이프 시 화면 스크롤 방지
+        }, {passive: false});
+
+        gameContainer.addEventListener('touchend', (e) => {
+            if (!touchStartX || !touchStartY) return;
+
+            let touchEndX = e.changedTouches[0].clientX;
+            let touchEndY = e.changedTouches[0].clientY;
+
+            let dx = touchEndX - touchStartX;
+            let dy = touchEndY - touchStartY;
+
+            // 스와이프 민감도 (최소 이동 거리)
+            if (Math.abs(dx) < 30 && Math.abs(dy) < 30) return;
+
+            if (Math.abs(dx) > Math.abs(dy)) {
+                // 좌우 스와이프
+                if (dx > 0) move('Right');
+                else move('Left');
+            } else {
+                // 상하 스와이프
+                if (dy > 0) move('Down');
+                else move('Up');
+            }
+
+            touchStartX = 0;
+            touchStartY = 0;
+        });
+
+        // 게임 시작
+        initGame();
+    </script>
+</body>
+</html>
