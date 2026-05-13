@@ -62,7 +62,6 @@
             margin-top: 15px; font-size: 14px; color: #4facfe; height: 20px;
         }
 
-        /* 콤보 텍스트 */
         .combo-text {
             position: absolute; font-size: 24px; font-weight: bold; color: white;
             text-shadow: 0 0 10px rgba(255,255,255,0.8); pointer-events: none;
@@ -84,14 +83,12 @@
 
     <canvas id="gameCanvas"></canvas>
 
-    <!-- 시작 화면 -->
     <div id="start-screen" class="overlay">
         <h1>NEON STACK</h1>
         <p>타이밍에 맞춰 탭하세요!<br>어긋나면 블록이 잘려나갑니다.</p>
         <button onclick="initGame()">타워 건설 시작</button>
     </div>
 
-    <!-- 게임 오버 화면 -->
     <div id="game-over-screen" class="overlay" style="display: none;">
         <h1 style="color: #ff4757; text-shadow: 0 0 20px #ff4757;">GAME OVER</h1>
         <p style="font-size: 24px;">최종 점수: <span id="final-score" style="color: white; font-weight: bold;">0</span></p>
@@ -116,10 +113,9 @@
     canvas.width = CANVAS_WIDTH;
     canvas.height = CANVAS_HEIGHT;
 
-    // 부모 인덱스 파일명 규칙에 맞춘 ID (예: neon_tower.html -> neon_tower)
-    const GAME_ID = "neon_tower"; 
+    // 대소문자 및 띄어쓰기를 index.html의 로직과 정확히 맞춤
+    const GAME_ID = "Neon_Tower"; 
 
-    // 게임 상수
     const BLOCK_HEIGHT = 40;
     const INITIAL_WIDTH = 300;
     const INITIAL_SPEED = 4;
@@ -139,7 +135,6 @@
     let gameLoopId = null;
 
     function initGame() {
-        // 기존 루프가 있다면 제거 (중복 실행 버그 방지)
         if (gameLoopId) cancelAnimationFrame(gameLoopId);
         
         state = 'PLAYING';
@@ -151,7 +146,7 @@
         combo = 0;
         cameraY = 0;
         targetCameraY = 0;
-        currentSpeed = INITIAL_SPEED; // 재시작 시 속도 완전 초기화
+        currentSpeed = INITIAL_SPEED;
         
         scoreDisplay.innerText = score;
         scoreDisplay.style.color = "rgba(255, 255, 255, 0.15)";
@@ -160,7 +155,6 @@
         fallingBlocks = [];
         particles = [];
 
-        // 첫 번째 고정 블록
         blocks.push({
             x: (CANVAS_WIDTH - INITIAL_WIDTH) / 2,
             y: CANVAS_HEIGHT - 100,
@@ -178,10 +172,8 @@
         const hue = (200 + blocks.length * 10) % 360;
         const dir = blocks.length % 2 === 0 ? 1 : -1;
         
-        // 속도 계산: 점수가 올라갈수록(위로 올라갈수록) 빨라짐
-        // 재시작 시에는 score가 0이므로 초기 속도인 INITIAL_SPEED로 시작됨
         currentSpeed = INITIAL_SPEED + (score * 0.12);
-        if (currentSpeed > 15) currentSpeed = 15; // 최대 속도 제한
+        if (currentSpeed > 15) currentSpeed = 15; 
 
         movingBlock = {
             x: dir === 1 ? -topBlock.w : CANVAS_WIDTH,
@@ -203,7 +195,6 @@
         const diff = movingBlock.x - topBlock.x;
         const absDiff = Math.abs(diff);
 
-        // 1. 완전히 빗나감
         if (absDiff >= movingBlock.w) {
             fallingBlocks.push({...movingBlock, vy: 0, va: 0.1});
             movingBlock = null;
@@ -211,14 +202,12 @@
             return;
         }
 
-        // 2. 퍼펙트 또는 판정
         if (absDiff <= PERFECT_TOLERANCE) {
             movingBlock.x = topBlock.x;
             combo++;
             score += 1 + Math.floor(combo / 3);
             showComboText(`PERFECT x${combo}`, movingBlock.x + movingBlock.w / 2, movingBlock.y);
             
-            // 5연속 퍼펙트 시 사이즈 업
             if (combo % 5 === 0 && movingBlock.w < INITIAL_WIDTH) {
                 const expand = 20;
                 movingBlock.w = Math.min(INITIAL_WIDTH, movingBlock.w + expand);
@@ -226,7 +215,6 @@
             }
             spawnParticles(movingBlock.x + movingBlock.w / 2, movingBlock.y, movingBlock.color);
         } else {
-            // 3. 어긋남 (블록 잘리기)
             combo = 0;
             score += 1;
             
@@ -261,14 +249,20 @@
         }, 800);
     }
 
+    // --- 부모 창으로 점수 전송 ---
     function submitScore() {
         const name = document.getElementById('player-name').value.trim() || "익명";
         
+        if (score < 1) {
+            alert("점수가 없어 등록할 수 없습니다.");
+            return;
+        }
+
         statusMsg.innerText = "랭킹 등록 중...";
         
-        // 부모 창(index.html)의 bridge 함수 호출
-        if (window.parent && window.parent.db && window.parent.db.saveScore) {
-            window.parent.db.saveScore(GAME_ID, {
+        // 부모 창(index.html)의 Realtime DB 브릿지 호출
+        if (parent && parent.window.db) {
+            parent.window.db.saveScore(GAME_ID, {
                 name: name,
                 score: score,
                 timestamp: Date.now()
@@ -295,25 +289,21 @@
         if (state === 'PLAYING' && movingBlock) {
             movingBlock.x += movingBlock.speed * movingBlock.dir;
             if (movingBlock.x > CANVAS_WIDTH || movingBlock.x + movingBlock.w < 0) {
-                // 경계를 완전히 벗어나면 게임 오버
                 movingBlock = null;
                 triggerGameOver();
             }
         }
 
-        // 카메라 이동
         if (cameraY < targetCameraY) {
             cameraY += (targetCameraY - cameraY) * 0.1;
         }
 
-        // 추락 블록
         fallingBlocks.forEach((b, i) => {
             b.vy = (b.vy || 0) + 0.5;
             b.y += b.vy;
             if (b.y + cameraY > CANVAS_HEIGHT + 100) fallingBlocks.splice(i, 1);
         });
 
-        // 파티클
         particles.forEach((p, i) => {
             p.x += p.vx; p.y += p.vy; p.life -= 0.02;
             if (p.life <= 0) particles.splice(i, 1);
@@ -323,7 +313,6 @@
     function draw() {
         ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
         
-        // 블록 그리기
         blocks.forEach(b => drawBlock(b));
         if (movingBlock) drawBlock(movingBlock, true);
         
@@ -335,7 +324,6 @@
             ctx.restore();
         });
 
-        // 파티클 그리기
         particles.forEach(p => {
             ctx.globalAlpha = p.life;
             ctx.fillStyle = p.color;
@@ -355,7 +343,6 @@
         ctx.roundRect(b.x, y, b.w, b.h, 5);
         ctx.fill();
         
-        // 광택 효과
         ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
         ctx.fillRect(b.x, y, b.w, b.h * 0.3);
         
@@ -381,7 +368,6 @@
         setTimeout(() => el.remove(), 800);
     }
 
-    // 터치/클릭 이벤트 전역 등록
     window.addEventListener('mousedown', (e) => {
         if(e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT') handleInput();
     });
