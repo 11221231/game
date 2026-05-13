@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Neon Grid Breaker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #050510;
+        }
+        body {
+            background-color: var(--bg-color);
+            color: white;
+            font-family: 'Orbitron', sans-serif;
+            overflow: hidden; /* Prevent scrolling on mobile */
+            touch-action: none;
+        }
+        
+        /* Neon Block Colors & Glows */
+        .block-color-0 { background: #ff0055; box-shadow: 0 0 10px #ff005580, inset 0 0 10px rgba(255,255,255,0.5); border: 2px solid #ffaacc; }
+        .block-color-1 { background: #00ddff; box-shadow: 0 0 10px #00ddff80, inset 0 0 10px rgba(255,255,255,0.5); border: 2px solid #aaffff; }
+        .block-color-2 { background: #00ff66; box-shadow: 0 0 10px #00ff6680, inset 0 0 10px rgba(255,255,255,0.5); border: 2px solid #aaffcc; }
+        .block-color-3 { background: #ffcc00; box-shadow: 0 0 10px #ffcc0080, inset 0 0 10px rgba(255,255,255,0.5); border: 2px solid #ffffaa; }
+        .block-color-4 { background: #aa00ff; box-shadow: 0 0 10px #aa00ff80, inset 0 0 10px rgba(255,255,255,0.5); border: 2px solid #eebbff; }
+
+        .block {
+            transition: top 0.15s ease-in, left 0.15s ease-in, transform 0.1s;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .block:active { transform: scale(0.9); }
+
+        /* Screen Shake Effect */
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(0px, 0px) rotate(0deg); }
+        }
+        .shake { animation: shake 0.2s cubic-bezier(.36,.07,.19,.97); }
+        .shake-heavy { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97); }
+
+        /* Fever Mode Aesthetics */
+        body.fever-mode {
+            animation: feverBgPulse 1s infinite alternate;
+        }
+        @keyframes feverBgPulse {
+            0% { background-color: #1a0033; }
+            100% { background-color: #330000; }
+        }
+        .fever-text {
+            background: linear-gradient(to right, #ff0055, #ffcc00, #00ddff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px rgba(255,255,255,0.5);
+            animation: pulseFever 0.5s infinite alternate;
+        }
+        @keyframes pulseFever {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.1); }
+        }
+
+        /* Floating Points Animation */
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-50px) scale(1.5); }
+        }
+        .floating-text {
+            position: absolute;
+            font-family: 'Black Han Sans', sans-serif;
+            font-size: 24px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 0 5px #000, 0 0 10px currentColor;
+            pointer-events: none;
+            animation: floatUp 0.8s ease-out forwards;
+            z-index: 50;
+        }
+
+        /* Progress Bar */
+        #fever-bar-fill {
+            transition: width 0.2s ease-out, background-color 0.2s;
+        }
+        
+        /* NEW: 피버 타임 화려한 이펙트 */
+        @keyframes feverScorePulse {
+            0% { transform: scale(1); text-shadow: 0 0 10px #ff0055, 0 0 20px #ff0055; color: #ff0055; }
+            50% { transform: scale(1.4); text-shadow: 0 0 20px #00ddff, 0 0 40px #00ddff; color: #fff; }
+            100% { transform: scale(1.2); text-shadow: 0 0 10px #ffcc00, 0 0 20px #ffcc00; color: #ffcc00; }
+        }
+        .fever-score-active {
+            animation: feverScorePulse 0.3s infinite alternate !important;
+        }
+
+        @keyframes feverBoardGlow {
+            0% { box-shadow: 0 0 20px #ff0055, inset 0 0 20px #ff0055; border-color: #ff0055; }
+            50% { box-shadow: 0 0 40px #00ddff, inset 0 0 40px #00ddff; border-color: #00ddff; }
+            100% { box-shadow: 0 0 20px #ffcc00, inset 0 0 20px #ffcc00; border-color: #ffcc00; }
+        }
+        .fever-board-active {
+            animation: feverBoardGlow 0.4s infinite alternate !important;
+        }
+
+        .floating-text.fever-pop {
+            font-size: 40px;
+            font-weight: 900;
+            text-shadow: 0 0 10px #fff, 0 0 30px currentColor;
+            z-index: 100;
+        }
+
+        .modal-glass {
+            background: rgba(10, 10, 25, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex items-center justify-center select-none" id="main-container">
+
+    <div id="game-wrapper" class="relative w-full max-w-md h-full max-h-[900px] flex flex-col p-4">
+        
+        <!-- Header: Score & Timer -->
+        <div class="flex justify-between items-end mb-2 mt-4 px-2">
+            <div>
+                <p class="text-xs text-gray-400 uppercase tracking-widest">Score</p>
+                <div id="score-display" class="text-4xl font-black text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]">0</div>
+            </div>
+            <div class="text-right">
+                <p class="text-xs text-gray-400 uppercase tracking-widest">Time</p>
+                <div id="time-display" class="text-4xl font-black text-cyan-400 drop-shadow-[0_0_10px_rgba(0,221,255,0.8)]">60</div>
+            </div>
+        </div>
+
+        <!-- Fever Meter -->
+        <div class="w-full h-4 bg-gray-800 rounded-full mb-4 border border-gray-700 overflow-hidden relative">
+            <div id="fever-bar-fill" class="h-full w-0 bg-cyan-500 shadow-[0_0_10px_#00ddff]"></div>
+            <div id="fever-text-indicator" class="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white uppercase tracking-widest opacity-0">Fever Time! x2 Points</div>
+        </div>
+
+        <!-- Game Area -->
+        <div id="board-container" class="relative flex-1 bg-gray-900 rounded-xl border-4 border-gray-800 shadow-2xl overflow-hidden touch-none">
+            <!-- Grid generated by JS -->
+            <div id="grid-element" class="absolute top-0 left-0 w-full h-full"></div>
+            <!-- Canvas for Particles (Overlays grid) -->
+            <canvas id="particle-canvas" class="absolute top-0 left-0 w-full h-full pointer-events-none z-10"></canvas>
+            <!-- Container for Floating Texts -->
+            <div id="floating-text-container" class="absolute top-0 left-0 w-full h-full pointer-events-none z-20 overflow-hidden"></div>
+        </div>
+
+        <!-- Screens (Modals) -->
+        <!-- Start Screen -->
+        <div id="start-screen" class="absolute inset-0 z-50 flex items-center justify-center p-4">
+            <div class="modal-glass rounded-2xl p-8 text-center w-full max-w-sm flex flex-col items-center">
+                <h1 class="text-4xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">NEON GRID<br>BREAKER</h1>
+                <p class="text-gray-300 text-sm mb-6">2개 이상 뭉친 같은 색상 블록을 탭하세요!<br>빠르게 터뜨려 피버 게이지를 채우세요.</p>
+                <button id="start-btn" class="w-full py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold text-xl uppercase tracking-wider shadow-[0_0_20px_rgba(0,221,255,0.5)] hover:scale-105 active:scale-95 transition-transform">
+                    Start Game
+                </button>
+            </div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="game-over-screen" class="absolute inset-0 z-50 hidden flex-col items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <div class="modal-glass rounded-2xl p-6 text-center w-full max-w-sm relative">
+                <h2 class="text-3xl font-black mb-1 text-red-500">TIME OVER</h2>
+                <div class="text-5xl font-black text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.8)] mb-6" id="final-score">0</div>
+                
+                <!-- NEW: 랭킹 등록 UI (기존 Mock Leaderboard 대체) -->
+                <div id="submit-score-group" class="w-full mb-6">
+                    <input type="text" id="player-name-input" class="w-full bg-gray-900 text-white font-bold rounded-xl p-3 mb-3 text-center border-2 border-gray-700 focus:border-cyan-400 outline-none placeholder-gray-500" placeholder="닉네임을 입력하세요 (최대 10자)" maxlength="10">
+                    <button id="submit-score-btn" class="w-full py-3 rounded-xl bg-gradient-to-r from-green-400 to-teal-500 text-white font-bold text-lg uppercase tracking-wider shadow-[0_0_15px_rgba(52,199,89,0.5)] hover:scale-105 active:scale-95 transition-transform">
+                        랭킹 등록하기
+                    </button>
+                </div>
+                <div id="submit-success-msg" class="hidden text-green-400 font-bold mb-6 text-lg animate-pulse">
+                    🎉 점수가 등록되었습니다!<br>사이드바를 확인하세요.
+                </div>
+
+                <button id="restart-btn" class="w-full py-4 rounded-xl bg-gradient-to-r from-purple-500 to-pink-600 text-white font-bold text-xl uppercase tracking-wider shadow-[0_0_20px_rgba(255,0,170,0.5)] hover:scale-105 active:scale-95 transition-transform">
+                    Play Again
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const GAME_TIME = 30;
+        const GRID_ROWS = 10;
+        const GRID_COLS = 9;
+        const COLORS = 5; // Corresponding to CSS .block-color-0 to 4
+        const COLOR_HEX = ['#ff0055', '#00ddff', '#00ff66', '#ffcc00', '#aa00ff'];
+
+        let grid = [];
+        let score = 0;
+        let timeLeft = GAME_TIME;
+        let timerInterval;
+        let feverMeter = 0;
+        let isFever = false;
+        let isPlaying = false;
+        let blockWidth = 0;
+        let blockHeight = 0;
+
+        // DOM Elements
+        const gridElement = document.getElementById('grid-element');
+        const boardContainer = document.getElementById('board-container');
+        const scoreDisplay = document.getElementById('score-display');
+        const timeDisplay = document.getElementById('time-display');
+        const feverBarFill = document.getElementById('fever-bar-fill');
+        const feverTextIndicator = document.getElementById('fever-text-indicator');
+        const startScreen = document.getElementById('start-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const startBtn = document.getElementById('start-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        const finalScoreDisplay = document.getElementById('final-score');
+        
+        // NEW: 랭킹 등록 관련 엘리먼트
+        const playerNameInput = document.getElementById('player-name-input');
+        const submitScoreBtn = document.getElementById('submit-score-btn');
+        const submitScoreGroup = document.getElementById('submit-score-group');
+        const submitSuccessMsg = document.getElementById('submit-success-msg');
+
+        const leaderboardList = document.getElementById('leaderboard-list');
+        const mainContainer = document.getElementById('main-container');
+        const floatingContainer = document.getElementById('floating-text-container');
+        
+        // Canvas Setup for Particles
+        const canvas = document.getElementById('particle-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        let animationFrameId;
+
+        function initGame() {
+            score = 0;
+            timeLeft = GAME_TIME;
+            feverMeter = 0;
+            isFever = false;
+            isPlaying = true;
+            particles = [];
+            gridElement.innerHTML = '';
+            floatingContainer.innerHTML = '';
+            
+            updateScore();
+            timeDisplay.innerText = timeLeft;
+            timeDisplay.classList.remove('text-red-500', 'animate-pulse');
+            updateFeverBar();
+            document.body.classList.remove('fever-mode');
+            
+            startScreen.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+
+            // Calculate block dimensions based on container size
+            const rect = boardContainer.getBoundingClientRect();
+            blockWidth = rect.width / GRID_COLS;
+            blockHeight = rect.height / GRID_ROWS;
+            
+            // Setup Canvas size
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+
+            createGrid();
+            renderGrid();
+
+            clearInterval(timerInterval);
+            timerInterval = setInterval(gameLoop, 1000);
+            
+            cancelAnimationFrame(animationFrameId);
+            animateParticles();
+        }
+
+        function createGrid() {
+            grid = [];
+            for (let r = 0; r < GRID_ROWS; r++) {
+                let row = [];
+                for (let c = 0; c < GRID_COLS; c++) {
+                    row.push(createBlock(r, c));
+                }
+                grid.push(row);
+            }
+        }
+
+        function createBlock(row, col) {
+            const colorIdx = Math.floor(Math.random() * COLORS);
+            const id = `block-${row}-${col}-${Math.random().toString(36).substr(2, 9)}`;
+            return { id, row, col, color: colorIdx };
+        }
+
+        function renderGrid() {
+            gridElement.innerHTML = '';
+            for (let r = 0; r < GRID_ROWS; r++) {
+                for (let c = 0; c < GRID_COLS; c++) {
+                    const blockData = grid[r][c];
+                    if (!blockData) continue;
+
+                    const blockEl = document.createElement('div');
+                    blockEl.id = blockData.id;
+                    blockEl.className = `block block-color-${blockData.color} absolute`;
+                    // Add slight gap for visuals
+                    blockEl.style.width = `${blockWidth - 4}px`;
+                    blockEl.style.height = `${blockHeight - 4}px`;
+                    // Position using standard left/top
+                    blockEl.style.left = `${c * blockWidth + 2}px`;
+                    blockEl.style.top = `${r * blockHeight + 2}px`;
+                    
+                    // Interaction
+                    blockEl.onmousedown = (e) => handleBlockClick(blockData, e);
+                    blockEl.ontouchstart = (e) => { e.preventDefault(); handleBlockClick(blockData, e.touches[0]); };
+
+                    gridElement.appendChild(blockEl);
+                }
+            }
+        }
+
+        function handleBlockClick(blockData, event) {
+            if (!isPlaying || !blockData) return;
+
+            const row = blockData.row;
+            const col = blockData.col;
+
+            // Ensure the block is still valid in the grid
+            if (grid[row][col] !== blockData) return;
+
+            const targetColor = blockData.color;
+            const connectedBlocks = getConnectedBlocks(row, col, targetColor);
+
+            if (connectedBlocks.length >= 2) {
+                destroyBlocks(connectedBlocks, event);
+                applyGravity();
+            } else {
+                // Hint/Feedback for single block - tiny shake
+                const el = document.getElementById(blockData.id);
+                if(el) {
+                    el.classList.add('shake');
+                    setTimeout(() => el.classList.remove('shake'), 200);
+                }
+            }
+        }
+
+        // Flood fill algorithm
+        function getConnectedBlocks(startRow, startCol, targetColor) {
+            const visited = new Set();
+            const connected = [];
+            const stack = [{r: startRow, c: startCol}];
+
+            while (stack.length > 0) {
+                const {r, c} = stack.pop();
+                const key = `${r},${c}`;
+
+                if (r < 0 || r >= GRID_ROWS || c < 0 || c >= GRID_COLS) continue;
+                if (visited.has(key)) continue;
+                if (!grid[r][c] || grid[r][c].color !== targetColor) continue;
+
+                visited.add(key);
+                connected.push({r, c, ...grid[r][c]});
+
+                stack.push({r: r - 1, c: c}); // Up
+                stack.push({r: r + 1, c: c}); // Down
+                stack.push({r: r, c: c - 1}); // Left
+                stack.push({r: r, c: c + 1}); // Right
+            }
+            return connected;
+        }
+
+        function destroyBlocks(blocks, event) {
+            const count = blocks.length;
+            
+            // Calculate score (Exponential scaling for larger groups)
+            let points = count * count * 10;
+            if (isFever) points *= 2;
+            score += points;
+            updateScore();
+
+            // Screen Shake Intensity
+            mainContainer.classList.remove('shake', 'shake-heavy');
+            void mainContainer.offsetWidth; // Trigger reflow
+            if (count >= 8) {
+                mainContainer.classList.add('shake-heavy');
+            } else if (count >= 4) {
+                mainContainer.classList.add('shake');
+            }
+
+            // Calculate center of destruction for floating text and mass particles
+            let centerX = 0, centerY = 0;
+            const targetColor = grid[blocks[0].r][blocks[0].c].color;
+
+            blocks.forEach(b => {
+                // DOM element removal
+                const el = document.getElementById(b.id);
+                if (el) {
+                    const rect = el.getBoundingClientRect();
+                    const containerRect = boardContainer.getBoundingClientRect();
+                    const x = rect.left - containerRect.left + blockWidth/2;
+                    const y = rect.top - containerRect.top + blockHeight/2;
+                    
+                    centerX += x;
+                    centerY += y;
+
+                    // Generate Particles per block
+                    spawnExplosion(x, y, COLOR_HEX[targetColor], 5 + (isFever ? 5 : 0));
+                    el.remove();
+                }
+                // Nullify array
+                grid[b.r][b.c] = null;
+            });
+
+            centerX /= count;
+            centerY /= count;
+
+            // Floating Score Text
+            if (isFever) {
+                showFloatingText(`+${points}x2!`, centerX, centerY, COLOR_HEX[targetColor], true);
+            } else {
+                showFloatingText(`+${points}`, centerX, centerY, COLOR_HEX[targetColor], false);
+            }
+
+            // Fever Meter Logic
+            if (!isFever) {
+                feverMeter += count * 2;
+                if (feverMeter >= 100) {
+                    triggerFeverMode();
+                } else {
+                    updateFeverBar();
+                }
+            }
+        }
+
+        function applyGravity() {
+            let moved = false;
+            // Move blocks down
+            for (let c = 0; c < GRID_COLS; c++) {
+                let emptySpaces = 0;
+                for (let r = GRID_ROWS - 1; r >= 0; r--) {
+                    if (grid[r][c] === null) {
+                        emptySpaces++;
+                    } else if (emptySpaces > 0) {
+                        // Move block down
+                        grid[r + emptySpaces][c] = grid[r][c];
+                        grid[r][c] = null;
+                        moved = true;
+                    }
+                }
+            }
+
+            // Fill top empty spaces
+            for (let c = 0; c < GRID_COLS; c++) {
+                for (let r = 0; r < GRID_ROWS; r++) {
+                    if (grid[r][c] === null) {
+                        const newBlock = createBlock(r, c);
+                        grid[r][c] = newBlock;
+                        
+                        // Create and prepend DOM element so it animates falling down
+                        const blockEl = document.createElement('div');
+                        blockEl.id = newBlock.id;
+                        blockEl.className = `block block-color-${newBlock.color} absolute`;
+                        blockEl.style.width = `${blockWidth - 4}px`;
+                        blockEl.style.height = `${blockHeight - 4}px`;
+                        blockEl.style.left = `${c * blockWidth + 2}px`;
+                        // Start physically higher for falling effect
+                        blockEl.style.top = `${-blockHeight}px`; 
+                        
+                        blockEl.onmousedown = (e) => handleBlockClick(newBlock, e);
+                        blockEl.ontouchstart = (e) => { e.preventDefault(); handleBlockClick(newBlock, e.touches[0]); };
+
+                        gridElement.appendChild(blockEl);
+                        moved = true;
+                    } else {
+                        break; // Stop checking down if we hit a block
+                    }
+                }
+            }
+
+            // Trigger CSS transitions
+            if (moved) {
+                // Small timeout to ensure DOM recognizes the starting top position before transitioning
+                setTimeout(() => {
+                    updateGridPositions();
+                }, 10);
+            }
+        }
+
+        function updateGridPositions() {
+            for (let r = 0; r < GRID_ROWS; r++) {
+                for (let c = 0; c < GRID_COLS; c++) {
+                    const blockData = grid[r][c];
+                    if (blockData) {
+                        // 중요: 블록이 아래로 떨어졌으므로 내부 좌표계(row, col) 최신화
+                        blockData.row = r;
+                        blockData.col = c;
+                        
+                        // DOM 요소의 위치를 최신 좌표로 부드럽게 이동 (CSS transition 활용)
+                        const el = document.getElementById(blockData.id);
+                        if (el) {
+                            el.style.width = `${blockWidth - 4}px`;
+                            el.style.height = `${blockHeight - 4}px`;
+                            el.style.left = `${c * blockWidth + 2}px`;
+                            el.style.top = `${r * blockHeight + 2}px`;
+                        }
+                    }
+                }
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                // Random explosion velocity
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 8 + 2;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                this.life = 1.0;
+                this.decay = Math.random() * 0.03 + 0.02;
+                this.size = Math.random() * 8 + 4;
+                this.gravity = 0.2;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += this.gravity; // Fall down
+                this.life -= this.decay;
+                this.size *= 0.95; // Shrink
+            }
+
+            draw(ctx) {
+                ctx.globalAlpha = this.life;
+                ctx.fillStyle = this.color;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = this.color;
+                ctx.fillRect(this.x, this.y, this.size, this.size);
+                ctx.globalAlpha = 1.0; // Reset
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        function spawnExplosion(x, y, color, count) {
+            for (let i = 0; i < count; i++) {
+                particles.push(new Particle(x, y, color));
+            }
+        }
+
+        function animateParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.update();
+                if (p.life <= 0 || p.size < 0.5) {
+                    particles.splice(i, 1);
+                } else {
+                    p.draw(ctx);
+                }
+            }
+            
+            animationFrameId = requestAnimationFrame(animateParticles);
+        }
+
+        function triggerFeverMode() {
+            isFever = true;
+            document.body.classList.add('fever-mode');
+            
+            // NEW: 피버 타임 화려한 효과 켜기
+            scoreDisplay.classList.add('fever-score-active');
+            boardContainer.classList.add('fever-board-active');
+
+            feverBarFill.style.width = '100%';
+            feverBarFill.style.backgroundColor = '#ff0055';
+            feverTextIndicator.style.opacity = '1';
+            
+            // Generate ambient particles
+            for(let i=0; i<30; i++) {
+                spawnExplosion(Math.random()*canvas.width, canvas.height, '#ff0055', 1);
+            }
+
+            // Fever lasts 10 seconds
+            setTimeout(() => {
+                isFever = false;
+                feverMeter = 0;
+                document.body.classList.remove('fever-mode');
+                
+                // NEW: 피버 타임 효과 끄기
+                scoreDisplay.classList.remove('fever-score-active');
+                boardContainer.classList.remove('fever-board-active');
+
+                feverBarFill.style.backgroundColor = '#00ddff';
+                feverTextIndicator.style.opacity = '0';
+                updateFeverBar();
+            }, 10000);
+        }
+
+        function showFloatingText(text, x, y, color, isFeverPop = false) {
+            const el = document.createElement('div');
+            el.className = 'floating-text';
+            if (isFeverPop) el.classList.add('fever-pop'); // 피버 이펙트 클래스 추가
+            el.innerText = text;
+            el.style.left = `${x}px`;
+            el.style.top = `${y}px`;
+            el.style.color = color;
+            floatingContainer.appendChild(el);
+            
+            // Remove after animation
+            setTimeout(() => { el.remove(); }, 800);
+        }
+
+        function updateScore() {
+            // Animate score change
+            const current = parseInt(scoreDisplay.innerText);
+            const target = score;
+            const diff = target - current;
+            
+            if (diff > 0) {
+                scoreDisplay.style.transform = 'scale(1.2)';
+                scoreDisplay.style.color = '#ffcc00';
+                setTimeout(() => {
+                    scoreDisplay.style.transform = 'scale(1)';
+                    scoreDisplay.style.color = 'white';
+                }, 100);
+            }
+            scoreDisplay.innerText = score;
+        }
+
+        function updateFeverBar() {
+            if (!isFever) {
+                feverBarFill.style.width = `${Math.min(feverMeter, 100)}%`;
+            }
+        }
+
+        function gameLoop() {
+            if (!isPlaying) return;
+            
+            timeLeft--;
+            timeDisplay.innerText = timeLeft;
+
+            if (timeLeft <= 10) {
+                timeDisplay.classList.add('text-red-500', 'animate-pulse');
+            }
+
+            if (timeLeft <= 0) {
+                endGame();
+            }
+        }
+
+        function endGame() {
+            isPlaying = false;
+            clearInterval(timerInterval);
+            finalScoreDisplay.innerText = score;
+            
+            // UI 초기화 및 모달 노출
+            playerNameInput.value = '';
+            submitScoreGroup.style.display = 'block';
+            submitSuccessMsg.classList.add('hidden');
+
+            gameOverScreen.classList.remove('hidden');
+            gameOverScreen.classList.add('flex');
+        }
+
+        // NEW: 부모 Iframe(메인 허브)의 Firebase로 점수 전송
+        submitScoreBtn.addEventListener('click', async () => {
+            const playerName = playerNameInput.value.trim();
+            if (!playerName) {
+                alert("닉네임을 입력해주세요!");
+                return;
+            }
+
+            // 파일명(Neon Grid Breaker)과 메인 허브의 포맷을 맞춤 (공백을 언더바로 변환)
+            const gameId = "Neon_Grid_Breaker"; 
+            const data = { name: playerName, score: score };
+
+            // 부모 윈도우의 db 브릿지가 존재하는지 확인
+            if (window.parent && window.parent.db && window.parent.db.saveScore) {
+                try {
+                    await window.parent.db.saveScore(gameId, data);
+                    // 성공 처리
+                    submitScoreGroup.style.display = 'none';
+                    submitSuccessMsg.classList.remove('hidden');
+                } catch (e) {
+                    console.error("Score save error:", e);
+                    alert("서버 오류로 랭킹 등록에 실패했습니다.");
+                }
+            } else {
+                alert("메인 허브(부모 창)와 연결되어 있지 않아 랭킹을 등록할 수 없습니다.\n(단독 실행 모드에서는 점수가 저장되지 않습니다.)");
+            }
+        });
+
+        // Event Listeners
+        startBtn.addEventListener('click', initGame);
+        restartBtn.addEventListener('click', initGame);
+        
+        // Handle window resize to adjust grid layout
+        window.addEventListener('resize', () => {
+            if (isPlaying) {
+                const rect = boardContainer.getBoundingClientRect();
+                blockWidth = rect.width / GRID_COLS;
+                blockHeight = rect.height / GRID_ROWS;
+                canvas.width = rect.width;
+                canvas.height = rect.height;
+                updateGridPositions();
+            }
+        });
+
+    </script>
+</body>
+</html>
