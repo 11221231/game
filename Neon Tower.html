@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>네온 타워 스택</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: #050505;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro KR", sans-serif;
+            overflow: hidden; touch-action: none;
+        }
+
+        #game-container {
+            position: relative; width: 100%; height: 100%;
+            background: radial-gradient(circle at center, #1a1a2e 0%, #050505 100%);
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        canvas { display: block; max-width: 100%; max-height: 100%; }
+
+        /* UI 레이어 */
+        .ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: flex; flex-direction: column; align-items: center;
+            z-index: 10;
+        }
+
+        #score-display {
+            font-size: 80px; font-weight: 900; color: rgba(255, 255, 255, 0.15);
+            margin-top: 100px; transition: color 0.3s;
+        }
+
+        .overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            pointer-events: auto; z-index: 20; color: white; text-align: center;
+        }
+
+        h1 { font-size: 48px; margin-bottom: 10px; color: #00f2fe; text-shadow: 0 0 20px #00f2fe; }
+        p { font-size: 18px; color: #ccc; margin-bottom: 30px; line-height: 1.6; }
+
+        /* 버튼 및 입력창 */
+        input {
+            padding: 12px 20px; font-size: 18px; border-radius: 12px; border: none;
+            margin-bottom: 15px; width: 220px; text-align: center;
+            background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        button {
+            padding: 15px 40px; font-size: 20px; font-weight: bold; border: none;
+            border-radius: 50px; cursor: pointer; transition: all 0.2s;
+            background: linear-gradient(45deg, #00f2fe, #4facfe); color: #000;
+            box-shadow: 0 0 20px rgba(0, 242, 254, 0.4);
+        }
+
+        button:active { transform: scale(0.95); }
+        
+        #status-msg {
+            margin-top: 15px; font-size: 14px; color: #4facfe; height: 20px;
+        }
+
+        /* 콤보 텍스트 */
+        .combo-text {
+            position: absolute; font-size: 24px; font-weight: bold; color: white;
+            text-shadow: 0 0 10px rgba(255,255,255,0.8); pointer-events: none;
+            animation: floatUp 0.8s ease-out forwards;
+        }
+
+        @keyframes floatUp {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(-50px); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div class="ui-layer">
+        <div id="score-display">0</div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- 시작 화면 -->
+    <div id="start-screen" class="overlay">
+        <h1>NEON STACK</h1>
+        <p>타이밍에 맞춰 탭하세요!<br>어긋나면 블록이 잘려나갑니다.</p>
+        <button onclick="initGame()">타워 건설 시작</button>
+    </div>
+
+    <!-- 게임 오버 화면 -->
+    <div id="game-over-screen" class="overlay" style="display: none;">
+        <h1 style="color: #ff4757; text-shadow: 0 0 20px #ff4757;">GAME OVER</h1>
+        <p style="font-size: 24px;">최종 점수: <span id="final-score" style="color: white; font-weight: bold;">0</span></p>
+        
+        <input type="text" id="player-name" placeholder="닉네임 입력" maxlength="5">
+        <button id="submit-btn" onclick="submitScore()">점수 등록 후 다시하기</button>
+        <div id="status-msg"></div>
+        <button onclick="initGame()" style="margin-top: 10px; background: #333; color: #fff; font-size: 16px;">등록 안 하고 다시하기</button>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreDisplay = document.getElementById('score-display');
+    const gameOverScreen = document.getElementById('game-over-screen');
+    const finalScoreText = document.getElementById('final-score');
+    const statusMsg = document.getElementById('status-msg');
+
+    const CANVAS_WIDTH = 500;
+    const CANVAS_HEIGHT = 800;
+    canvas.width = CANVAS_WIDTH;
+    canvas.height = CANVAS_HEIGHT;
+
+    // 부모 인덱스 파일명 규칙에 맞춘 ID (예: neon_tower.html -> neon_tower)
+    const GAME_ID = "neon_tower"; 
+
+    // 게임 상수
+    const BLOCK_HEIGHT = 40;
+    const INITIAL_WIDTH = 300;
+    const INITIAL_SPEED = 4;
+    const PERFECT_TOLERANCE = 5;
+
+    let state = 'MENU';
+    let score = 0;
+    let combo = 0;
+    let blocks = [];
+    let movingBlock = null;
+    let fallingBlocks = [];
+    let particles = [];
+    
+    let cameraY = 0;
+    let targetCameraY = 0;
+    let currentSpeed = INITIAL_SPEED;
+    let gameLoopId = null;
+
+    function initGame() {
+        // 기존 루프가 있다면 제거 (중복 실행 버그 방지)
+        if (gameLoopId) cancelAnimationFrame(gameLoopId);
+        
+        state = 'PLAYING';
+        document.getElementById('start-screen').style.display = 'none';
+        gameOverScreen.style.display = 'none';
+        statusMsg.innerText = "";
+        
+        score = 0;
+        combo = 0;
+        cameraY = 0;
+        targetCameraY = 0;
+        currentSpeed = INITIAL_SPEED; // 재시작 시 속도 완전 초기화
+        
+        scoreDisplay.innerText = score;
+        scoreDisplay.style.color = "rgba(255, 255, 255, 0.15)";
+
+        blocks = [];
+        fallingBlocks = [];
+        particles = [];
+
+        // 첫 번째 고정 블록
+        blocks.push({
+            x: (CANVAS_WIDTH - INITIAL_WIDTH) / 2,
+            y: CANVAS_HEIGHT - 100,
+            w: INITIAL_WIDTH,
+            h: BLOCK_HEIGHT,
+            color: `hsl(200, 80%, 50%)`
+        });
+
+        spawnNextBlock();
+        gameLoop();
+    }
+
+    function spawnNextBlock() {
+        const topBlock = blocks[blocks.length - 1];
+        const hue = (200 + blocks.length * 10) % 360;
+        const dir = blocks.length % 2 === 0 ? 1 : -1;
+        
+        // 속도 계산: 점수가 올라갈수록(위로 올라갈수록) 빨라짐
+        // 재시작 시에는 score가 0이므로 초기 속도인 INITIAL_SPEED로 시작됨
+        currentSpeed = INITIAL_SPEED + (score * 0.12);
+        if (currentSpeed > 15) currentSpeed = 15; // 최대 속도 제한
+
+        movingBlock = {
+            x: dir === 1 ? -topBlock.w : CANVAS_WIDTH,
+            y: topBlock.y - BLOCK_HEIGHT,
+            w: topBlock.w,
+            h: BLOCK_HEIGHT,
+            speed: currentSpeed,
+            dir: dir,
+            color: `hsl(${hue}, 80%, 60%)`
+        };
+
+        targetCameraY = (CANVAS_HEIGHT - 400) - movingBlock.y;
+    }
+
+    function handleInput() {
+        if (state !== 'PLAYING' || !movingBlock) return;
+
+        const topBlock = blocks[blocks.length - 1];
+        const diff = movingBlock.x - topBlock.x;
+        const absDiff = Math.abs(diff);
+
+        // 1. 완전히 빗나감
+        if (absDiff >= movingBlock.w) {
+            fallingBlocks.push({...movingBlock, vy: 0, va: 0.1});
+            movingBlock = null;
+            triggerGameOver();
+            return;
+        }
+
+        // 2. 퍼펙트 또는 판정
+        if (absDiff <= PERFECT_TOLERANCE) {
+            movingBlock.x = topBlock.x;
+            combo++;
+            score += 1 + Math.floor(combo / 3);
+            showComboText(`PERFECT x${combo}`, movingBlock.x + movingBlock.w / 2, movingBlock.y);
+            
+            // 5연속 퍼펙트 시 사이즈 업
+            if (combo % 5 === 0 && movingBlock.w < INITIAL_WIDTH) {
+                const expand = 20;
+                movingBlock.w = Math.min(INITIAL_WIDTH, movingBlock.w + expand);
+                movingBlock.x -= expand / 2;
+            }
+            spawnParticles(movingBlock.x + movingBlock.w / 2, movingBlock.y, movingBlock.color);
+        } else {
+            // 3. 어긋남 (블록 잘리기)
+            combo = 0;
+            score += 1;
+            
+            const originalW = movingBlock.w;
+            movingBlock.w -= absDiff;
+            
+            let choppedX, choppedW = absDiff;
+            if (diff > 0) {
+                choppedX = movingBlock.x + movingBlock.w;
+            } else {
+                choppedX = movingBlock.x - absDiff;
+                movingBlock.x = topBlock.x;
+            }
+
+            fallingBlocks.push({
+                x: choppedX, y: movingBlock.y, w: choppedW, h: BLOCK_HEIGHT,
+                color: movingBlock.color, vy: 0, va: (Math.random() - 0.5) * 0.2
+            });
+        }
+
+        blocks.push(movingBlock);
+        scoreDisplay.innerText = score;
+        spawnNextBlock();
+    }
+
+    function triggerGameOver() {
+        state = 'GAMEOVER';
+        finalScoreText.innerText = score;
+        scoreDisplay.style.color = "transparent";
+        setTimeout(() => {
+            gameOverScreen.style.display = 'flex';
+        }, 800);
+    }
+
+    function submitScore() {
+        const name = document.getElementById('player-name').value.trim() || "익명";
+        
+        statusMsg.innerText = "랭킹 등록 중...";
+        
+        // 부모 창(index.html)의 bridge 함수 호출
+        if (window.parent && window.parent.db && window.parent.db.saveScore) {
+            window.parent.db.saveScore(GAME_ID, {
+                name: name,
+                score: score,
+                timestamp: Date.now()
+            }).then(() => {
+                statusMsg.innerText = "등록 완료!";
+                setTimeout(initGame, 500);
+            }).catch(err => {
+                statusMsg.innerText = "등록 실패 (네트워크 오류)";
+                console.error(err);
+            });
+        } else {
+            statusMsg.innerText = "부모 창의 DB 설정을 찾을 수 없습니다.";
+            setTimeout(initGame, 1500);
+        }
+    }
+
+    function gameLoop() {
+        update();
+        draw();
+        gameLoopId = requestAnimationFrame(gameLoop);
+    }
+
+    function update() {
+        if (state === 'PLAYING' && movingBlock) {
+            movingBlock.x += movingBlock.speed * movingBlock.dir;
+            if (movingBlock.x > CANVAS_WIDTH || movingBlock.x + movingBlock.w < 0) {
+                // 경계를 완전히 벗어나면 게임 오버
+                movingBlock = null;
+                triggerGameOver();
+            }
+        }
+
+        // 카메라 이동
+        if (cameraY < targetCameraY) {
+            cameraY += (targetCameraY - cameraY) * 0.1;
+        }
+
+        // 추락 블록
+        fallingBlocks.forEach((b, i) => {
+            b.vy = (b.vy || 0) + 0.5;
+            b.y += b.vy;
+            if (b.y + cameraY > CANVAS_HEIGHT + 100) fallingBlocks.splice(i, 1);
+        });
+
+        // 파티클
+        particles.forEach((p, i) => {
+            p.x += p.vx; p.y += p.vy; p.life -= 0.02;
+            if (p.life <= 0) particles.splice(i, 1);
+        });
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        
+        // 블록 그리기
+        blocks.forEach(b => drawBlock(b));
+        if (movingBlock) drawBlock(movingBlock, true);
+        
+        fallingBlocks.forEach(b => {
+            ctx.save();
+            ctx.translate(b.x + b.w/2, b.y + cameraY + b.h/2);
+            ctx.rotate(b.va || 0);
+            drawBlock({x: -b.w/2, y: -b.h/2, w: b.w, h: b.h, color: b.color}, false, true);
+            ctx.restore();
+        });
+
+        // 파티클 그리기
+        particles.forEach(p => {
+            ctx.globalAlpha = p.life;
+            ctx.fillStyle = p.color;
+            ctx.fillRect(p.x, p.y + cameraY, p.size, p.size);
+        });
+        ctx.globalAlpha = 1;
+    }
+
+    function drawBlock(b, isMoving = false, noCamera = false) {
+        const y = noCamera ? b.y : b.y + cameraY;
+        
+        ctx.fillStyle = b.color;
+        ctx.shadowBlur = isMoving ? 15 : 0;
+        ctx.shadowColor = b.color;
+        
+        ctx.beginPath();
+        ctx.roundRect(b.x, y, b.w, b.h, 5);
+        ctx.fill();
+        
+        // 광택 효과
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.fillRect(b.x, y, b.w, b.h * 0.3);
+        
+        ctx.shadowBlur = 0;
+    }
+
+    function spawnParticles(x, y, color) {
+        for(let i=0; i<15; i++) {
+            particles.push({
+                x: x, y: y, vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10,
+                life: 1, size: Math.random()*5, color: color
+            });
+        }
+    }
+
+    function showComboText(txt, x, y) {
+        const el = document.createElement('div');
+        el.className = 'combo-text';
+        el.innerText = txt;
+        el.style.left = x + 'px';
+        el.style.top = (y + cameraY) + 'px';
+        document.getElementById('game-container').appendChild(el);
+        setTimeout(() => el.remove(), 800);
+    }
+
+    // 터치/클릭 이벤트 전역 등록
+    window.addEventListener('mousedown', (e) => {
+        if(e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT') handleInput();
+    });
+    window.addEventListener('touchstart', (e) => {
+        if(e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT') {
+            e.preventDefault();
+            handleInput();
+        }
+    }, {passive: false});
+
+</script>
+</body>
+</html>
