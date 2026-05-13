@@ -13,7 +13,7 @@
             background-color: #0f172a;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             overflow: hidden;
-            touch-action: none; /* 모바일 브라우저 스크롤 완벽 차단 */
+            touch-action: none;
         }
 
         #game-container {
@@ -33,7 +33,6 @@
             height: 100%;
         }
 
-        /* 배경에 띄워둘 거대한 현재 점수 */
         #bg-score {
             position: absolute;
             top: 20%;
@@ -91,16 +90,22 @@
             cursor: pointer;
             box-shadow: 0 4px 15px rgba(244, 63, 94, 0.4);
             transition: transform 0.1s, filter 0.2s;
+            margin-top: 10px;
         }
 
-        button:active {
-            transform: scale(0.95);
-        }
-        button:hover {
-            filter: brightness(1.2);
+        button:active { transform: scale(0.95); }
+        button:hover { filter: brightness(1.2); }
+
+        input {
+            padding: 10px;
+            font-size: 18px;
+            text-align: center;
+            border-radius: 8px;
+            border: none;
+            margin-bottom: 15px;
+            width: 200px;
         }
 
-        /* 콤보 이펙트 텍스트 */
         .floating-text {
             position: absolute;
             font-size: 24px;
@@ -116,7 +121,6 @@
             0% { transform: translate(-50%, 0) scale(1); opacity: 1; }
             100% { transform: translate(-50%, -50px) scale(1.5); opacity: 0; }
         }
-
     </style>
 </head>
 <body>
@@ -128,19 +132,22 @@
     <div id="start-screen" class="overlay">
         <h1>NEON TOWER</h1>
         <p>
-            화면을 터치(클릭)하여 블록을 쌓으세요.<br>
+            화면을 터치하여 블록을 쌓으세요.<br>
             어긋난 부분은 <b>잘려나갑니다.</b><br>
             정확히 일치시키면 <b>PERFECT 콤보!</b><br>
-            <span style="font-size: 13px;">(5연속 퍼펙트 시 블록이 다시 커집니다)</span>
+            <span style="font-size: 13px;">(5연속 퍼펙트 시 블록 사이즈 업)</span>
         </p>
         <button id="start-btn">타워 건설 시작</button>
     </div>
 
     <div id="game-over-screen" class="overlay" style="display: none;">
         <h1 style="background: -webkit-linear-gradient(45deg, #f87171, #ef4444); -webkit-background-clip: text;">GAME OVER</h1>
-        <p style="font-size: 24px;">SCORE: <b id="final-score" style="font-size: 36px; color: white;">0</b></p>
-        <p id="best-score-text" style="color: #4ade80; margin-top: -20px; margin-bottom: 30px;">최고 기록: 0</p>
-        <button id="restart-btn">다시 도전</button>
+        <p style="font-size: 24px; margin-bottom: 5px;">SCORE: <b id="final-score" style="font-size: 36px; color: white;">0</b></p>
+        <p id="best-score-text" style="color: #4ade80; margin-top: 0; margin-bottom: 20px;">로컬 최고 기록: 0</p>
+        
+        <input type="text" id="player-name" placeholder="닉네임 (3자 이내)" maxlength="3">
+        <button id="submit-btn">점수 등록 후 다시하기</button>
+        <button id="restart-btn" style="background: #4b5563; font-size: 16px; padding: 10px 20px;">등록 안 하고 다시하기</button>
     </div>
 </div>
 
@@ -152,43 +159,43 @@
     const startScreen = document.getElementById('start-screen');
     const gameOverScreen = document.getElementById('game-over-screen');
 
-    // 해상도 고정 (논리적 크기)
     const CANVAS_WIDTH = 500;
     const CANVAS_HEIGHT = 800;
     canvas.width = CANVAS_WIDTH;
     canvas.height = CANVAS_HEIGHT;
 
-    // 게임 상태 변수
-    let state = 'MENU'; // MENU, PLAYING, GAMEOVER
+    // --- GAME ID 설정 (부모 창의 DB 저장용) ---
+    const GAME_ID = "neon_tower"; 
+    
+    let state = 'MENU'; 
     let score = 0;
     let combo = 0;
     let bestScore = localStorage.getItem('neonTowerBest') || 0;
     
-    // 블록 설정
     const BLOCK_HEIGHT = 40;
     const MAX_WIDTH = 300;
-    const PERFECT_TOLERANCE = 6; // 완벽 판정 오차범위 (픽셀)
+    const PERFECT_TOLERANCE = 6;
+    const INITIAL_SPEED = 5; // 초기 속도 상수 지정
 
     let blocks = []; 
     let movingBlock = null;
-    let fallingBlocks = []; // 잘려나가서 떨어지는 블록들
-    let particles = [];     // 파티클(이펙트) 효과
+    let fallingBlocks = []; 
+    let particles = [];     
     
-    let hue = 200; // 블록 색상 (HSL)
-    let currentSpeed = 5;
+    let hue = 200; 
+    let currentSpeed = INITIAL_SPEED; // 게임 시작 시 초기화 됨
     let currentDir = 1;
 
-    // 카메라(화면 스크롤) 설정
     let cameraY = 0;
     let targetCameraY = 0;
-
-    // 플래시 효과 (퍼펙트 성공 시 화면 번쩍임)
     let flashAlpha = 0;
 
-    // 입력 이벤트 등록
+    // requestAnimationFrame 루프 ID 저장용 (중복 실행 방지)
+    let animationId = null;
+
     gameContainer.addEventListener('mousedown', handleInput);
     gameContainer.addEventListener('touchstart', (e) => {
-        e.preventDefault(); // 스크롤 방지
+        e.preventDefault();
         handleInput();
     }, {passive: false});
 
@@ -202,6 +209,11 @@
         initGame();
     });
 
+    document.getElementById('submit-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        submitScoreAndRestart();
+    });
+
     function initGame() {
         state = 'PLAYING';
         startScreen.style.display = 'none';
@@ -210,7 +222,10 @@
         score = 0;
         combo = 0;
         hue = 200;
-        currentSpeed = 5;
+        
+        // BUG FIX: 재시작 시 속도 초기화 (이전 게임의 가속된 속도가 남아있지 않게 함)
+        currentSpeed = INITIAL_SPEED; 
+        
         bgScore.innerText = score;
         
         blocks = [];
@@ -220,31 +235,30 @@
         targetCameraY = 0;
         flashAlpha = 0;
 
-        // 베이스 블록 (제일 밑바닥 고정)
         blocks.push({
             x: (CANVAS_WIDTH - MAX_WIDTH) / 2,
-            y: CANVAS_HEIGHT - 100, // 아래쪽에 배치
+            y: CANVAS_HEIGHT - 100,
             w: MAX_WIDTH,
-            h: BLOCK_HEIGHT * 5, // 바닥은 깊게
+            h: BLOCK_HEIGHT * 5,
             color: `hsl(${hue}, 80%, 50%)`
         });
 
         spawnNextBlock();
-        requestAnimationFrame(gameLoop);
+        
+        // BUG FIX: 기존 루프가 있다면 취소하고 새로 시작 (루프 중첩으로 빨라지는 현상 방지)
+        if (animationId) cancelAnimationFrame(animationId);
+        gameLoop();
     }
 
     function spawnNextBlock() {
         let topBlock = blocks[blocks.length - 1];
         
-        // 색상 서서히 변경
         hue = (hue + 12) % 360;
-        
-        // 방향 전환
         currentDir *= -1;
         
-        // 속도 약간씩 증가
+        // 타워가 높아질수록(score 증가) 속도 증가
         if (currentSpeed < 12) {
-            currentSpeed += 0.15;
+            currentSpeed += 0.15; 
         }
 
         movingBlock = {
@@ -257,8 +271,6 @@
             color: `hsl(${hue}, 80%, 55%)`
         };
 
-        // 타워가 높아지면 카메라 타겟 위치 위로 올리기 (화면 중앙에 맞추기 위해)
-        // 위에서부터 300px 위치에 새 블록이 오도록 조정
         targetCameraY = (CANVAS_HEIGHT - 400) - movingBlock.y;
     }
 
@@ -268,43 +280,35 @@
         let topBlock = blocks[blocks.length - 1];
         let current = movingBlock;
 
-        // 1. 블록 멈춤
         current.speed = 0;
 
-        // 2. 일치 여부 계산 (현재 블록의 중심선과 탑 블록의 중심선 비교가 더 직관적)
         let diff = current.x - topBlock.x;
         let absDiff = Math.abs(diff);
 
-        // 3. 완전히 벗어남 (게임 오버)
         if (absDiff >= current.w) {
-            current.vy = 0; // 자유낙하 시작
+            current.vy = 0;
             fallingBlocks.push(current);
             movingBlock = null;
             triggerGameOver();
             return;
         }
 
-        // 4. 퍼펙트 일치 (오차범위 이내)
         if (absDiff <= PERFECT_TOLERANCE) {
-            current.x = topBlock.x; // 오차 보정 (자석처럼 딱 붙음)
+            current.x = topBlock.x;
             combo++;
-            score += 1 + Math.floor(combo / 3); // 콤보 시 추가 점수
+            score += 1 + Math.floor(combo / 3);
             
-            // 퍼펙트 이펙트
             flashAlpha = 0.5;
             spawnParticles(current.x + current.w/2, current.y + current.h/2, current.color);
             showFloatingText(`PERFECT! x${combo}`, current.x + current.w/2, current.y - 20, '#fff');
 
-            // 5번 연속 퍼펙트면 블록 크기 증가 보너스
             if (combo % 5 === 0 && current.w < MAX_WIDTH) {
                 let expandAmount = 20;
                 current.w = Math.min(MAX_WIDTH, current.w + expandAmount);
-                current.x -= expandAmount / 2; // 중심 유지
+                current.x -= expandAmount / 2;
                 showFloatingText("SIZE UP!", current.x + current.w/2, current.y - 50, '#4ade80');
             }
-        } 
-        // 5. 불일치 (블록 잘림)
-        else {
+        } else {
             combo = 0;
             score += 1;
             
@@ -316,16 +320,16 @@
                 vy: 0,
                 vx: 0,
                 angle: 0,
-                va: (Math.random() - 0.5) * 0.1 // 회전 속도
+                va: (Math.random() - 0.5) * 0.1
             };
 
-            if (diff > 0) { // 너무 늦게 눌러서 오른쪽으로 삐져나옴
+            if (diff > 0) {
                 current.w -= absDiff;
                 chopped.x = current.x + current.w;
-                chopped.vx = 2; // 튕겨나가는 효과
-            } else { // 너무 빨리 눌러서 왼쪽으로 삐져나옴
+                chopped.vx = 2;
+            } else {
                 current.w -= absDiff;
-                current.x = topBlock.x; // 남은 부분 위치 고정
+                current.x = topBlock.x;
                 chopped.x = current.x - absDiff;
                 chopped.vx = -2;
             }
@@ -333,7 +337,6 @@
             fallingBlocks.push(chopped);
         }
 
-        // 6. 스택에 추가 및 다음 블록 준비
         blocks.push(current);
         bgScore.innerText = score;
         spawnNextBlock();
@@ -348,14 +351,40 @@
         }
         
         document.getElementById('final-score').innerText = score;
-        document.getElementById('best-score-text').innerText = `최고 기록: ${bestScore}`;
+        document.getElementById('best-score-text').innerText = `로컬 최고 기록: ${bestScore}`;
         
         setTimeout(() => {
             gameOverScreen.style.display = 'flex';
-        }, 1000); // 블록이 떨어지는 것을 감상할 1초 대기
+        }, 1000);
     }
 
-    // --- 시각적 이펙트 함수 ---
+    // --- DB 점수 전송 ---
+    function submitScoreAndRestart() {
+        let nameInput = document.getElementById('player-name').value.trim();
+        let playerName = nameInput || '익명';
+
+        // 부모 창의 window.db 객체에 접근 (iframe 환경일 때 동작)
+        if (window.parent && window.parent.db && typeof window.parent.db.saveScore === 'function') {
+            window.parent.db.saveScore(GAME_ID, {
+                name: playerName,
+                score: score,
+                timestamp: Date.now()
+            }).then(() => {
+                initGame(); // 전송 성공 후 재시작
+            }).catch(err => {
+                alert("점수 등록에 실패했습니다.");
+                console.error(err);
+                initGame();
+            });
+        } else {
+            // 로컬에서 그냥 띄웠을 때
+            alert("DB 연결을 찾을 수 없습니다. (부모 창에서 실행해야 합니다)");
+            initGame();
+        }
+    }
+
+
+    // --- 효과 ---
     function spawnParticles(x, y, color) {
         for (let i = 0; i < 15; i++) {
             particles.push({
@@ -374,13 +403,11 @@
         const el = document.createElement('div');
         el.className = 'floating-text';
         el.innerText = text;
-        // 실제 화면 비율에 맞게 좌표 변환
         const rect = canvas.getBoundingClientRect();
         const scaleX = rect.width / CANVAS_WIDTH;
         const scaleY = rect.height / CANVAS_HEIGHT;
         
         el.style.left = `${(x * scaleX) + rect.left}px`;
-        // y좌표는 카메라 오프셋을 적용하여 계산
         let drawY = y + cameraY;
         el.style.top = `${(drawY * scaleY) + rect.top}px`;
         el.style.color = color;
@@ -389,55 +416,47 @@
         setTimeout(() => el.remove(), 1000);
     }
 
-    // --- 게임 루프 및 렌더링 ---
+    // --- 루프 ---
     function gameLoop() {
         update();
         draw();
         
         if (state !== 'MENU') {
-            requestAnimationFrame(gameLoop);
+            animationId = requestAnimationFrame(gameLoop);
         }
     }
 
     function update() {
         if (state === 'MENU') return;
 
-        // 카메라 부드러운 이동 (선형 보간)
         if (targetCameraY > cameraY) {
             cameraY += (targetCameraY - cameraY) * 0.1;
         }
 
-        // 플래시 효과 페이드 아웃
         if (flashAlpha > 0) flashAlpha -= 0.02;
 
         if (state === 'PLAYING' && movingBlock) {
-            // 움직이는 블록 위치 업데이트
             movingBlock.x += movingBlock.speed * movingBlock.dir;
             
-            // 화면 양끝에 닿으면 방향 반전
             if (movingBlock.x <= 0 || movingBlock.x + movingBlock.w >= CANVAS_WIDTH) {
                 movingBlock.dir *= -1;
-                // 벽에 파묻히는 것 방지
                 if (movingBlock.x <= 0) movingBlock.x = 0;
                 if (movingBlock.x + movingBlock.w >= CANVAS_WIDTH) movingBlock.x = CANVAS_WIDTH - movingBlock.w;
             }
         }
 
-        // 잘려나간 조각들 물리 낙하
         for (let i = fallingBlocks.length - 1; i >= 0; i--) {
             let b = fallingBlocks[i];
-            b.vy += 0.8; // 중력
+            b.vy += 0.8; 
             b.y += b.vy;
             b.x += b.vx || 0;
             if(b.angle !== undefined) b.angle += b.va;
             
-            // 화면 완전 아래(카메라 고려)로 사라지면 제거
             if (b.y + cameraY > CANVAS_HEIGHT + 100) {
                 fallingBlocks.splice(i, 1);
             }
         }
 
-        // 파티클 업데이트
         for (let i = particles.length - 1; i >= 0; i--) {
             let p = particles[i];
             p.x += p.vx;
@@ -450,15 +469,12 @@
     function draw() {
         ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-        // 1. 쌓여있는 블록들 그리기
         blocks.forEach(b => drawNeonBlock(b.x, b.y + cameraY, b.w, b.h, b.color, false));
 
-        // 2. 현재 움직이는 블록 그리기
         if (movingBlock) {
             drawNeonBlock(movingBlock.x, movingBlock.y + cameraY, movingBlock.w, movingBlock.h, movingBlock.color, true);
         }
 
-        // 3. 잘려나가서 떨어지는 블록 그리기
         fallingBlocks.forEach(b => {
             ctx.save();
             ctx.translate(b.x + b.w/2, b.y + cameraY + b.h/2);
@@ -467,7 +483,6 @@
             ctx.restore();
         });
 
-        // 4. 파티클 그리기
         particles.forEach(p => {
             ctx.globalAlpha = Math.max(0, p.life);
             ctx.fillStyle = p.color;
@@ -477,42 +492,34 @@
         });
         ctx.globalAlpha = 1.0;
 
-        // 5. 퍼펙트 플래시 화면 전체 효과
         if (flashAlpha > 0) {
             ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha})`;
             ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
         }
     }
 
-    // 예쁜 네온 스타일 3D 느낌 블록 그리기
     function drawNeonBlock(x, y, w, h, color, isMoving) {
-        // 메인 바디
         ctx.fillStyle = color;
         ctx.fillRect(x, y, w, h);
         
-        // 상단 하이라이트 (빛 반사 느낌)
         ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
         ctx.fillRect(x, y, w, h * 0.2);
         
-        // 하단 그림자 (입체감)
         ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
         ctx.fillRect(x, y + h * 0.8, w, h * 0.2);
 
-        // 좌우 테두리
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
         ctx.lineWidth = 1;
         ctx.strokeRect(x, y, w, h);
 
-        // 움직이는 블록일 경우 외곽선 글로우(Glow) 효과 추가
         if (isMoving) {
             ctx.shadowColor = color;
             ctx.shadowBlur = 15;
             ctx.strokeRect(x, y, w, h);
-            ctx.shadowBlur = 0; // 다른 객체 그릴 때 영향 안 주게 초기화
+            ctx.shadowBlur = 0; 
         }
     }
 
-    // 배경 패턴 등 초기 렌더링을 위해 한 번 그려둠
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 </script>
